@@ -8,6 +8,35 @@ import { CandidateProfile, FormField, FillFieldResponse, BatchFillRequest, Batch
 import { executeFormFillerFallbackText, AIProviderConfig } from './form-filler.ai';
 import { logger } from '../../core/utils/logger';
 
+export const DEFAULT_CANDIDATE_PROFILE: CandidateProfile = {
+  fullName: 'Aditya Agarwal',
+  firstName: 'Aditya',
+  lastName: 'Agarwal',
+  email: 'adityaagar324@gmail.com',
+  phone: '9508664027',
+  location: 'Patna, India',
+  linkedin: 'https://www.linkedin.com/in/aditya2227/',
+  github: 'https://github.com/Adityaa2227',
+  portfolio: 'https://adityaagarwalportfolio.vercel.app/',
+  currentEmployer: 'PayPal',
+  currentRole: 'Software Engineer Intern',
+  totalExperience: '1 year',
+  noticePeriod: 'Immediate',
+  currentCTC: '0',
+  expectedCTC: '12',
+  workAuthorization: 'Authorized in India, no visa sponsorship required',
+  pastInternships: 'Software Engineer Intern at PayPal (BNPL team), React Developer Intern at NS Apps Innovation',
+  skills: 'Java, C++, JavaScript, TypeScript, Python, SQL, React, Next.js, Node.js, Express, Spring Boot, Redis, MongoDB, PostgreSQL, AWS (EC2, S3, EKS, Lambda), Docker, Kubernetes, CI/CD, Microservices, DSA',
+  college: 'Birla Institute of Technology (BIT) Mesra',
+  degree: 'Bachelor of Technology',
+  major: 'Computer Science and Engineering',
+  cgpa: '8.7',
+  gradYear: '2027',
+  codeforcesRating: '1000',
+  codechefRating: '1400',
+  leetcodeRating: '1600',
+};
+
 // ---------------------------------------------------------------------------
 // Keyword mappings: profile key -> array of label patterns to match
 // ---------------------------------------------------------------------------
@@ -16,13 +45,13 @@ const PROFILE_FIELD_MAP: Record<keyof CandidateProfile, string[]> = {
   firstName:        ['first name', 'given name'],
   lastName:         ['last name', 'surname', 'family name'],
   email:            ['email', 'e-mail', 'email address', 'mail'],
-  phone:            ['phone', 'mobile', 'contact number', 'telephone', 'cell', 'phone number', 'mobile number'],
+  phone:            ['phone', 'mobile', 'contact number', 'telephone', 'cell', 'phone number', 'mobile number', 'contact'],
   location:         ['location', 'city', 'current city', 'current location', 'address', 'where are you based'],
-  linkedin:         ['linkedin', 'linkedin profile', 'linkedin url'],
+  linkedin:         ['linkedin', 'linkedin profile', 'linkedin url', 'profile link'],
   github:           ['github', 'github profile', 'github url'],
-  portfolio:        ['portfolio', 'website', 'personal website', 'portfolio url'],
+  portfolio:        ['portfolio', 'website', 'personal website', 'portfolio url', 'personal link'],
   currentEmployer:  ['current employer', 'current company', 'company', 'employer', 'organization', 'organisation', 'where do you work'],
-  currentRole:      ['current role', 'current designation', 'job title', 'designation', 'position', 'current position', 'current title'],
+  currentRole:      ['current role', 'current designation', 'job title', 'designation', 'position', 'current position', 'current title', 'role'],
   totalExperience:  ['total experience', 'years of experience', 'experience', 'work experience', 'how many years'],
   noticePeriod:     ['notice period', 'joining availability', 'when can you join', 'availability'],
   currentCTC:       ['current ctc', 'current salary', 'current package', 'ctc', 'current compensation'],
@@ -31,8 +60,8 @@ const PROFILE_FIELD_MAP: Record<keyof CandidateProfile, string[]> = {
   pastInternships:  ['past internship', 'previous internship', 'internship experience', 'previous employer', 'work history'],
   skills:           ['skills', 'technical skills', 'key skills', 'technologies', 'tech stack'],
   college:          ['college', 'university', 'institution', 'school', 'alma mater', 'educational institution'],
-  degree:           ['degree', 'qualification', 'highest qualification'],
-  major:            ['major', 'branch', 'specialization', 'stream', 'field of study'],
+  degree:           ['degree', 'qualification', 'highest qualification', 'course'],
+  major:            ['major', 'branch', 'specialization', 'stream', 'field of study', 'department'],
   cgpa:             ['cgpa', 'gpa', 'percentage', 'marks', 'grade'],
   gradYear:         ['graduation year', 'year of graduation', 'passing year', 'pass out year', 'grad year'],
   codeforcesRating: ['codeforces', 'codeforces rating', 'cf rating'],
@@ -44,7 +73,9 @@ const PROFILE_FIELD_MAP: Record<keyof CandidateProfile, string[]> = {
 // Match a field label to a profile key using keyword matching
 // ---------------------------------------------------------------------------
 function matchFieldToProfile(label: string, profile: Partial<CandidateProfile>): string | null {
-  const normalized = label.toLowerCase().trim();
+  // Strip leading question numbers like "1. ", "2) ", "Q3: "
+  const cleaned = label.replace(/^(\d+|q\d+)[\.\s\:\)]+/i, '').trim();
+  const normalized = cleaned.toLowerCase();
 
   for (const [profileKey, patterns] of Object.entries(PROFILE_FIELD_MAP)) {
     const key = profileKey as keyof CandidateProfile;
@@ -64,23 +95,27 @@ function matchFieldToProfile(label: string, profile: Partial<CandidateProfile>):
 // ---------------------------------------------------------------------------
 // Build the candidate system prompt for AI field answering
 // ---------------------------------------------------------------------------
-function buildSystemPrompt(profile: Partial<CandidateProfile>): string {
+function buildSystemPrompt(profile: CandidateProfile): string {
   return (
-    `You are filling a job application form on behalf of candidate ${profile.fullName || 'Aditya Agarwal'}.\n` +
+    `You are filling a job application form on behalf of candidate ${profile.fullName}.\n` +
     `Candidate verified background:\n` +
-    `- Full Name: ${profile.fullName || 'Aditya Agarwal'}\n` +
-    `- Email: ${profile.email || 'aditya@example.com'}\n` +
-    `- Phone: ${profile.phone || '+91-9876543210'}\n` +
-    `- Location: ${profile.location || 'Bangalore, India'}\n` +
-    `- Current Employer: ${profile.currentEmployer || 'PayPal'}\n` +
-    `- Current Role: ${profile.currentRole || 'Software Engineer Intern'}\n` +
-    `- Past Internships: ${profile.pastInternships || 'Software Engineer Intern at PayPal, React Developer Intern at NS Apps Innovation'}\n` +
-    `- Education: ${profile.degree || 'B.Tech'} in ${profile.major || 'Computer Science and Engineering'} from ${profile.college || 'Birla Institute of Technology (BIT) Mesra'} (CGPA: ${profile.cgpa || '8.7'}/10, Grad: ${profile.gradYear || '2027'})\n` +
-    `- Skills: ${profile.skills || 'Java, C++, JavaScript, TypeScript, Python, SQL, React, Next.js, Node.js, Express, Spring Boot, Redis, MongoDB, PostgreSQL, AWS, Docker, Kubernetes'}\n` +
-    `- Notice Period: ${profile.noticePeriod || 'Immediate'}\n` +
-    `- Work Authorization: ${profile.workAuthorization || 'Authorized in India, no visa sponsorship required'}\n` +
-    `- Codeforces Rating: ${profile.codeforcesRating || '1000'}\n` +
-    `- Codechef Rating: ${profile.codechefRating || '1400'}\n` +
+    `- Full Name: ${profile.fullName}\n` +
+    `- Email: ${profile.email}\n` +
+    `- Phone: ${profile.phone}\n` +
+    `- Location: ${profile.location}\n` +
+    `- Current Employer: ${profile.currentEmployer}\n` +
+    `- Current Role: ${profile.currentRole}\n` +
+    `- Past Internships: ${profile.pastInternships}\n` +
+    `- Education: ${profile.degree} in ${profile.major} from ${profile.college} (CGPA: ${profile.cgpa}/10, Grad: ${profile.gradYear})\n` +
+    `- Skills: ${profile.skills}\n` +
+    `- Notice Period: ${profile.noticePeriod}\n` +
+    `- Work Authorization: ${profile.workAuthorization}\n` +
+    `- Codeforces Rating: ${profile.codeforcesRating}\n` +
+    `- Codechef Rating: ${profile.codechefRating}\n` +
+    `- LeetCode Rating: ${profile.leetcodeRating}\n` +
+    `- Portfolio: ${profile.portfolio}\n` +
+    `- LinkedIn: ${profile.linkedin}\n` +
+    `- GitHub: ${profile.github}\n` +
     `\nRules:\n` +
     `- Answer directly, truthfully, professionally, and concisely.\n` +
     `- For Yes/No questions based on the candidate's background, answer ONLY "Yes" or "No".\n` +
@@ -95,7 +130,7 @@ function buildSystemPrompt(profile: Partial<CandidateProfile>): string {
 // ---------------------------------------------------------------------------
 async function answerFieldWithAI(
   field: FormField,
-  profile: Partial<CandidateProfile>,
+  profile: CandidateProfile,
   jobContext: { title?: string; company?: string; jdText?: string } = {},
   aiConfig?: AIProviderConfig,
 ): Promise<{ text: string; provider: string; model: string }> {
@@ -133,6 +168,12 @@ async function answerFieldWithAI(
 export async function batchFillFields(req: BatchFillRequest, aiConfig?: AIProviderConfig): Promise<BatchFillResponse> {
   const { fields, jobContext = {}, profile = {} } = req;
 
+  // Merge provided profile with default profile so candidate data is never empty
+  const effectiveProfile: CandidateProfile = {
+    ...DEFAULT_CANDIDATE_PROFILE,
+    ...profile,
+  };
+
   const results: FillFieldResponse[] = [];
   let fromProfile = 0;
   let fromAI = 0;
@@ -141,7 +182,7 @@ export async function batchFillFields(req: BatchFillRequest, aiConfig?: AIProvid
 
   for (const field of fields) {
     // 1. Try profile matching first
-    const profileMatch = matchFieldToProfile(field.label, profile);
+    const profileMatch = matchFieldToProfile(field.label, effectiveProfile);
     if (profileMatch) {
       results.push({ fieldId: field.id, answer: profileMatch, source: 'profile' });
       fromProfile++;
@@ -157,7 +198,7 @@ export async function batchFillFields(req: BatchFillRequest, aiConfig?: AIProvid
 
     // 3. Fall back to AI
     try {
-      const { text, provider, model } = await answerFieldWithAI(field, profile, jobContext, aiConfig);
+      const { text, provider, model } = await answerFieldWithAI(field, effectiveProfile, jobContext, aiConfig);
       results.push({ fieldId: field.id, answer: text, source: 'ai', provider, model });
       lastProvider = provider;
       fromAI++;
