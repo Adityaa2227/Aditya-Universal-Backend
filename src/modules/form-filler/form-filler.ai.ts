@@ -47,16 +47,16 @@ export interface MultiFallbackResult {
 export function getFormFillerProviderChain(config?: AIProviderConfig): ProviderEntry[] {
   const chain: ProviderEntry[] = [];
 
-  const groqKey = config?.groqApiKey || (env as Record<string, unknown>)['GROQ_API_KEY'] as string;
+  const groqKey = config?.groqApiKey || env.GROQ_API_KEY || process.env.GROQ_API_KEY;
   const groqModel = config?.groqModel || (env as Record<string, unknown>)['GROQ_MODEL'] as string || 'openai/gpt-oss-20b';
 
-  const cerebrasKey = config?.cerebrasApiKey || (env as Record<string, unknown>)['CEREBRAS_API_KEY'] as string;
+  const cerebrasKey = config?.cerebrasApiKey || env.CEREBRAS_API_KEY || process.env.CEREBRAS_API_KEY;
   const cerebrasModel = config?.cerebrasModel || (env as Record<string, unknown>)['CEREBRAS_MODEL'] as string || 'llama3.1-70b';
 
-  const openrouterKey = config?.openrouterApiKey || (env as Record<string, unknown>)['OPENROUTER_API_KEY'] as string;
+  const openrouterKey = config?.openrouterApiKey || env.OPENROUTER_API_KEY || process.env.OPENROUTER_API_KEY;
   const openrouterModel = config?.openrouterModel || (env as Record<string, unknown>)['OPENROUTER_MODEL'] as string || 'meta-llama/llama-3.3-70b-instruct:free';
 
-  const geminiKey = config?.geminiApiKey || (env as Record<string, unknown>)['GEMINI_API_KEY'] as string;
+  const geminiKey = config?.geminiApiKey || env.GEMINI_API_KEY || process.env.GEMINI_API_KEY;
   const geminiModel = config?.geminiModel || (env as Record<string, unknown>)['GEMINI_MODEL'] as string || 'gemini-2.5-flash';
 
   // 1. Groq (Fast inference)

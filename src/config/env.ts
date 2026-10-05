@@ -1,4 +1,4 @@
-import dotenv from 'dotenv';
+﻿import dotenv from 'dotenv';
 import { z } from 'zod';
 
 dotenv.config();
@@ -23,13 +23,23 @@ const envSchema = z.object({
     .string()
     .default('100')
     .transform((val) => parseInt(val, 10)),
+
+  // AI Provider Keys (for Form Filler & AI modules)
+  GROQ_API_KEY: z.string().optional(),
+  CEREBRAS_API_KEY: z.string().optional(),
+  OPENROUTER_API_KEY: z.string().optional(),
+  GEMINI_API_KEY: z.string().optional(),
+  GROQ_MODEL: z.string().optional(),
+  CEREBRAS_MODEL: z.string().optional(),
+  OPENROUTER_MODEL: z.string().optional(),
+  GEMINI_MODEL: z.string().optional(),
 });
 
 const parseEnv = () => {
   const result = envSchema.safeParse(process.env);
 
   if (!result.success) {
-    console.error('❌ Invalid or missing environment configuration:');
+    console.error('Invalid or missing environment configuration:');
     for (const issue of result.error.issues) {
       console.error(`  - ${issue.path.join('.')}: ${issue.message}`);
     }
