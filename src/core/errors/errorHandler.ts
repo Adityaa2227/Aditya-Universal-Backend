@@ -16,7 +16,6 @@ export const errorHandler = (
   err: Error | AppError | ZodError | MongooseError,
   req: Request,
   res: Response,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _next: NextFunction,
 ): Response => {
   // 1. Operational AppError

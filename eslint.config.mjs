@@ -4,9 +4,12 @@ import tsParser from '@typescript-eslint/parser';
 import prettierConfig from 'eslint-config-prettier';
 
 export default [
+  {
+    ignores: ['dist/**', 'node_modules/**', 'coverage/**'],
+  },
   eslint.configs.recommended,
   {
-    files: ['src/**/*.ts', 'scripts/**/*.ts', 'tests/**/*.ts'],
+    files: ['src/**/*.ts', 'scripts/**/*.ts'],
     languageOptions: {
       parser: tsParser,
       parserOptions: {
@@ -28,13 +31,10 @@ export default [
     rules: {
       'no-unused-vars': 'off',
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
-      'no-undef': 'off', // TypeScript checks this
+      'no-undef': 'off',
       '@typescript-eslint/explicit-function-return-type': 'off',
       '@typescript-eslint/no-explicit-any': 'warn',
     },
   },
   prettierConfig,
-  {
-    ignores: ['dist/', 'node_modules/', 'coverage/'],
-  },
 ];

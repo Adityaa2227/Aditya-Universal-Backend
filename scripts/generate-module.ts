@@ -27,7 +27,14 @@ const toPascalCase = (str: string): string => {
     .join('');
 };
 
+// Convert kebab/snake to camelCase (e.g. "job-tracker" -> "jobTracker")
+const toCamelCase = (str: string): string => {
+  const pascal = toPascalCase(str);
+  return pascal.charAt(0).toLowerCase() + pascal.slice(1);
+};
+
 const pascalName = toPascalCase(moduleName);
+const camelName = toCamelCase(moduleName);
 const targetDir = path.join(__dirname, '..', 'src', 'modules', moduleName);
 
 if (fs.existsSync(targetDir)) {
@@ -42,13 +49,12 @@ const modelContent = `import { Schema, model, Document } from 'mongoose';
 
 export interface I${pascalName} extends Document {
   title: string;
-  metadata?: Record<string, unknown>;
-  userId?: Schema.Types.ObjectId;
+  data?: Record<string, unknown>;
   createdAt: Date;
   updatedAt: Date;
 }
 
-const ${moduleName}Schema = new Schema<I${pascalName}>(
+const ${camelName}Schema = new Schema<I${pascalName}>(
   {
     title: {
       type: String,
@@ -57,14 +63,9 @@ const ${moduleName}Schema = new Schema<I${pascalName}>(
       maxlength: [200, 'Title cannot exceed 200 characters'],
       index: true,
     },
-    metadata: {
+    data: {
       type: Schema.Types.Mixed,
       default: {},
-    },
-    userId: {
-      type: Schema.Types.ObjectId,
-      ref: 'User',
-      index: true,
     },
   },
   {
@@ -78,7 +79,7 @@ const ${moduleName}Schema = new Schema<I${pascalName}>(
   },
 );
 
-export const ${pascalName}Model = model<I${pascalName}>('${pascalName}', ${moduleName}Schema);
+export const ${pascalName}Model = model<I${pascalName}>('${pascalName}', ${camelName}Schema);
 `;
 
 // 2. Validation Template
@@ -90,7 +91,7 @@ export const create${pascalName}Schema = z.object({
     .trim()
     .min(1, 'Title cannot be empty')
     .max(200, 'Title cannot exceed 200 characters'),
-  metadata: z.record(z.unknown()).optional(),
+  data: z.record(z.unknown()).optional(),
 });
 
 export const update${pascalName}Schema = z.object({
@@ -100,10 +101,10 @@ export const update${pascalName}Schema = z.object({
     .min(1, 'Title cannot be empty')
     .max(200, 'Title cannot exceed 200 characters')
     .optional(),
-  metadata: z.record(z.unknown()).optional(),
+  data: z.record(z.unknown()).optional(),
 });
 
-export const ${moduleName}ParamsSchema = z.object({
+export const ${camelName}ParamsSchema = z.object({
   id: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid ID format'),
 });
 
@@ -117,9 +118,8 @@ import { Create${pascalName}Input, Update${pascalName}Input } from './${moduleNa
 import { AppError } from '../../core/errors/AppError';
 
 export class ${pascalName}Service {
-  public static async list(userId?: string): Promise<I${pascalName}[]> {
-    const filter = userId ? { userId } : {};
-    return ${pascalName}Model.find(filter).sort({ createdAt: -1 });
+  public static async list(): Promise<I${pascalName}[]> {
+    return ${pascalName}Model.find().sort({ createdAt: -1 });
   }
 
   public static async getById(id: string): Promise<I${pascalName}> {
@@ -130,11 +130,8 @@ export class ${pascalName}Service {
     return item;
   }
 
-  public static async create(input: Create${pascalName}Input, userId?: string): Promise<I${pascalName}> {
-    return ${pascalName}Model.create({
-      ...input,
-      ...(userId ? { userId } : {}),
-    });
+  public static async create(input: Create${pascalName}Input): Promise<I${pascalName}> {
+    return ${pascalName}Model.create(input);
   }
 
   public static async update(id: string, input: Update${pascalName}Input): Promise<I${pascalName}> {
@@ -160,9 +157,9 @@ import { ${pascalName}Service } from './${moduleName}.service';
 import { sendCreated, sendSuccess } from '../../core/utils/response';
 
 export class ${pascalName}Controller {
-  public static async list(req: Request, res: Response, next: NextFunction): Promise<void> {
+  public static async list(_req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const items = await ${pascalName}Service.list(req.user?.userId);
+      const items = await ${pascalName}Service.list();
       sendSuccess(res, items, '${pascalName} items fetched successfully');
     } catch (error) {
       next(error);
@@ -180,7 +177,7 @@ export class ${pascalName}Controller {
 
   public static async create(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const item = await ${pascalName}Service.create(req.body, req.user?.userId);
+      const item = await ${pascalName}Service.create(req.body);
       sendCreated(res, item, '${pascalName} created successfully');
     } catch (error) {
       next(error);
@@ -214,26 +211,23 @@ import { validateRequest } from '../../core/middleware/validate';
 import {
   create${pascalName}Schema,
   update${pascalName}Schema,
-  ${moduleName}ParamsSchema,
+  ${camelName}ParamsSchema,
 } from './${moduleName}.validation';
-import { optionalAuth } from '../../core/middleware/auth';
 
 const router = Router();
 
 // Routes for /api/v1/${moduleName}
-router.use(optionalAuth);
-
 router.get('/', ${pascalName}Controller.list);
 router.post('/', validateRequest({ body: create${pascalName}Schema }), ${pascalName}Controller.create);
-router.get('/:id', validateRequest({ params: ${moduleName}ParamsSchema }), ${pascalName}Controller.getById);
+router.get('/:id', validateRequest({ params: ${camelName}ParamsSchema }), ${pascalName}Controller.getById);
 router.put(
   '/:id',
-  validateRequest({ params: ${moduleName}ParamsSchema, body: update${pascalName}Schema }),
+  validateRequest({ params: ${camelName}ParamsSchema, body: update${pascalName}Schema }),
   ${pascalName}Controller.update,
 );
-router.delete('/:id', validateRequest({ params: ${moduleName}ParamsSchema }), ${pascalName}Controller.delete);
+router.delete('/:id', validateRequest({ params: ${camelName}ParamsSchema }), ${pascalName}Controller.delete);
 
-export const ${moduleName}Routes = router;
+export const ${camelName}Routes = router;
 `;
 
 fs.writeFileSync(path.join(targetDir, `${moduleName}.model.ts`), modelContent);
@@ -249,5 +243,5 @@ console.log(`   ├── ${moduleName}.service.ts`);
 console.log(`   ├── ${moduleName}.controller.ts`);
 console.log(`   └── ${moduleName}.routes.ts`);
 console.log(`\n👉 Next Step: Register the module in "src/routes.ts":`);
-console.log(`   import { ${moduleName}Routes } from './modules/${moduleName}/${moduleName}.routes';`);
-console.log(`   v1Router.use('/${moduleName}', ${moduleName}Routes);\n`);
+console.log(`   import { ${camelName}Routes } from './modules/${moduleName}/${moduleName}.routes';`);
+console.log(`   v1Router.use('/${moduleName}', ${camelName}Routes);\n`);

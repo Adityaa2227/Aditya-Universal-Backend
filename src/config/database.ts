@@ -17,6 +17,7 @@ export const connectDatabase = async (): Promise<typeof mongoose> => {
     });
 
     const conn = await mongoose.connect(env.MONGODB_URI, {
+      dbName: 'aditya-backend',
       serverSelectionTimeoutMS: 5000,
       autoIndex: env.NODE_ENV !== 'production', // Don't auto-build indexes in prod
     });

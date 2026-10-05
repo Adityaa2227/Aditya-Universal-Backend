@@ -46,11 +46,17 @@ export class AppError extends Error {
     return new AppError(message, 403, code);
   }
 
-  static notFound(message = 'Resource not found', code: ErrorCode = 'RESOURCE_NOT_FOUND'): AppError {
+  static notFound(
+    message = 'Resource not found',
+    code: ErrorCode = 'RESOURCE_NOT_FOUND',
+  ): AppError {
     return new AppError(message, 404, code);
   }
 
-  static conflict(message = 'Resource already exists', code: ErrorCode = 'RESOURCE_CONFLICT'): AppError {
+  static conflict(
+    message = 'Resource already exists',
+    code: ErrorCode = 'RESOURCE_CONFLICT',
+  ): AppError {
     return new AppError(message, 409, code);
   }
 
