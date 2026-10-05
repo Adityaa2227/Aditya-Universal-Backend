@@ -13,9 +13,7 @@ const startServer = async (): Promise<void> => {
 
     // 2. Start HTTP server
     server = app.listen(env.PORT, () => {
-      logger.info(
-        `🚀 Aditya Backend running in [${env.NODE_ENV}] mode on port ${env.PORT}`,
-      );
+      logger.info(`🚀 Aditya Backend running in [${env.NODE_ENV}] mode on port ${env.PORT}`);
       logger.info(`📖 API Documentation available at http://localhost:${env.PORT}/api-docs`);
       logger.info(`💓 Health check available at http://localhost:${env.PORT}/health`);
     });

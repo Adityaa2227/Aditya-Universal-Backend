@@ -13,8 +13,6 @@ const envSchema = z.object({
       message: 'PORT must be a valid number between 1 and 65535',
     }),
   MONGODB_URI: z.string().min(1, 'MONGODB_URI is required'),
-  JWT_SECRET: z.string().min(16, 'JWT_SECRET must be at least 16 characters for security'),
-  JWT_EXPIRES_IN: z.string().default('7d'),
   CORS_ORIGINS: z.string().default('*'),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
   RATE_LIMIT_WINDOW_MS: z
@@ -24,14 +22,6 @@ const envSchema = z.object({
   RATE_LIMIT_MAX_REQUESTS: z
     .string()
     .default('100')
-    .transform((val) => parseInt(val, 10)),
-  AUTH_RATE_LIMIT_WINDOW_MS: z
-    .string()
-    .default('900000')
-    .transform((val) => parseInt(val, 10)),
-  AUTH_RATE_LIMIT_MAX_REQUESTS: z
-    .string()
-    .default('10')
     .transform((val) => parseInt(val, 10)),
 });
 
