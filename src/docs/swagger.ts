@@ -290,6 +290,53 @@
         },
       },
     },
+        '/api/v1/form-filler/ask': {
+      post: {
+        tags: ['Form Filler'],
+        summary: 'Ask AI any question using Aditya Agarwal''s verified resume',
+        description: 'Answers any custom or open-ended job/interview question strictly in first person based on Aditya''s real background.',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['question'],
+                properties: {
+                  question: { type: 'string', example: 'Why should we hire you for this Software Engineer role?' },
+                  context: { type: 'string', example: 'Google Software Engineer role, looking for distributed systems experience' },
+                  length: { type: 'string', enum: ['concise', 'standard', 'detailed'], example: 'standard' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          200: {
+            description: 'AI generated answer',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean', example: true },
+                    message: { type: 'string', example: 'Answer generated' },
+                    data: {
+                      type: 'object',
+                      properties: {
+                        answer: { type: 'string' },
+                        provider: { type: 'string', example: 'groq' },
+                        model: { type: 'string', example: 'openai/gpt-oss-20b' },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
     '/api/v1/form-filler/ai-answer': {
       post: {
         tags: ['Form Filler'],

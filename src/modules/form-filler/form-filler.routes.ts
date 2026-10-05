@@ -16,6 +16,9 @@ router.get('/providers', FormFillerController.getProviders);
 // POST /api/v1/form-filler/fill       - Batch fill all form fields
 router.post('/fill', FormFillerController.fillFields);
 
+// POST /api/v1/form-filler/ask        - Ask AI any question using Aditya's resume
+router.post('/ask', FormFillerController.askQuestion);
+
 // POST /api/v1/form-filler/ai-answer  - Answer a single field with AI
 router.post('/ai-answer', FormFillerController.answerSingleField);
 
