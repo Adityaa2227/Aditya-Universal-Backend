@@ -3,7 +3,7 @@
 // ============================================================================
 
 import { Request, Response, NextFunction } from 'express';
-import { batchFillFields } from './form-filler.service';
+import { batchFillFields, answerCustomQuestion } from './form-filler.service';
 import { getFormFillerProviderChain } from './form-filler.ai';
 import { sendSuccess } from '../../core/utils/response';
 import { AppError } from '../../core/errors/AppError';
@@ -35,6 +35,29 @@ export class FormFillerController {
   }
 
   /**
+   * POST /api/v1/form-filler/ask
+   * Answer any custom question using Aditya Agarwal's full verified resume.
+   */
+  static async askQuestion(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { question, context, length } = req.body as {
+        question?: string;
+        context?: string;
+        length?: 'concise' | 'standard' | 'detailed';
+      };
+
+      if (!question || typeof question !== 'string' || question.trim().length === 0) {
+        throw AppError.badRequest('question string is required', 'BAD_REQUEST');
+      }
+
+      const result = await answerCustomQuestion({ question: question.trim(), context, length });
+      sendSuccess(res, result, 'Answer generated');
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
    * GET /api/v1/form-filler/providers
    * Returns list of active AI providers (for extension status display).
    */
@@ -56,16 +79,25 @@ export class FormFillerController {
    */
   static async answerSingleField(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { field, jobContext, profile } = req.body as BatchFillRequest & { field: unknown };
+      const body = req.body as { question?: string; context?: string; length?: 'concise' | 'standard' | 'detailed'; field?: unknown; jobContext?: unknown; profile?: unknown };
+
+      // Support direct question string
+      if (body.question) {
+        const result = await answerCustomQuestion({ question: body.question, context: body.context, length: body.length });
+        sendSuccess(res, result, 'Field answered');
+        return;
+      }
+
+      const { field, jobContext, profile } = body as BatchFillRequest & { field: unknown };
 
       if (!field) {
-        throw AppError.badRequest('field object is required', 'BAD_REQUEST');
+        throw AppError.badRequest('field object or question string is required', 'BAD_REQUEST');
       }
 
       const result = await batchFillFields({
         fields: [field as BatchFillRequest['fields'][0]],
-        jobContext,
-        profile,
+        jobContext: jobContext as BatchFillRequest['jobContext'],
+        profile: profile as BatchFillRequest['profile'],
       });
 
       if (result.results.length === 0) {

@@ -321,3 +321,67 @@ Provide the JSON response with the "answers" array now:`;
     provider: lastProvider,
   };
 }
+// ---------------------------------------------------------------------------
+// Answer Any Custom Question (Ask AI Feature)
+// ---------------------------------------------------------------------------
+export interface CustomQuestionRequest {
+  question: string;
+  context?: string;
+  length?: 'concise' | 'standard' | 'detailed';
+}
+
+export interface CustomQuestionResponse {
+  answer: string;
+  provider?: string;
+  model?: string;
+}
+
+export async function answerCustomQuestion(
+  req: CustomQuestionRequest,
+  aiConfig?: AIProviderConfig
+): Promise<CustomQuestionResponse> {
+  const { question, context = '', length = 'standard' } = req;
+
+  if (!question || question.trim().length === 0) {
+    throw new Error('Question is required');
+  }
+
+  const lengthGuide = length === 'concise'
+    ? 'Provide a concise, direct answer in 1-2 impactful sentences.'
+    : length === 'detailed'
+    ? 'Provide a comprehensive, well-structured answer in 2-3 detailed paragraphs highlighting relevant metrics, technical implementations, and achievements.'
+    : 'Provide a strong, balanced answer in 1 solid paragraph (3-4 sentences).';
+
+  const systemPrompt =
+`You are an expert career and job application assistant answering questions on behalf of candidate ADITYA AGARWAL.
+Here is Aditya Agarwal's verified background and resume:
+${ADITYA_FULL_RESUME_TEXT}
+
+RULES:
+1. Answer strictly as Aditya Agarwal in the first person ("I", "my experience").
+2. Draw exclusively from his real background (Software Engineer Intern at PayPal BNPL team, React Developer Intern at NS Apps Innovation, BIT Mesra CGPA 8.7, projects like JobGrid and FlexPass, 1000+ DSA problems).
+3. If asked about technologies he knows (Java, Node.js, React, Spring Boot, AWS, Docker, Kubernetes, etc.), describe his actual experience using them.
+4. ${lengthGuide}
+5. Keep the tone confident, professional, and authentic. Return only the final answer without meta-commentary, without markdown title headers, and without quotes.`;
+
+  const userPrompt =
+`Question:
+${question}
+
+${context ? `Extra Context / Target Company / Job Description:\n${context}\n` : ''}
+Your Answer:`;
+
+  const result = await executeFormFillerFallbackText({
+    systemPrompt,
+    userPrompt,
+    temperature: 0.2,
+    maxTokens: 1000,
+    config: aiConfig,
+  });
+
+  return {
+    answer: result.text.trim(),
+    provider: result.provider,
+    model: result.model,
+  };
+}
