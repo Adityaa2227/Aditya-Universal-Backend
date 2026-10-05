@@ -62,11 +62,11 @@ const createApp = (): Express => {
   // Interactive Swagger UI documentation
   app.use(
     '/api-docs',
-    swaggerUi.serve,
+    ...(swaggerUi.serve as unknown as express.RequestHandler[]),
     swaggerUi.setup(swaggerDocument, {
-      customSiteTitle: 'Aditya Backend - API Documentation',
+      customSiteTitle: 'Aditya Universal Backend - API Documentation',
       customCss: '.swagger-ui .topbar { display: none }',
-    }),
+    }) as unknown as express.RequestHandler,
   );
 
   // Versioned API routes with general rate limiter
