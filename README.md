@@ -33,6 +33,26 @@ Powers the Chrome Extension for **Google Forms**, **Microsoft Forms**, and job a
 | `POST` | `/api/v1/form-filler/fill` | Batch autofill scanned form fields |
 | `POST` | `/api/v1/form-filler/ai-answer` | Answer a single question with AI |
 
+### 🧑‍💻 3. Portfolio (`/api/v1/portfolio`)
+Backend for **adityaagarwalportfolio.vercel.app**: projects, resume, reviews, contact messages and the admin login. Uses its own MongoDB cluster (`PORTFOLIO_MONGODB_URI`, separate connection), ImageKit for uploads and SMTP for contact emails. Without `PORTFOLIO_MONGODB_URI` and `PORTFOLIO_JWT_SECRET` the module answers `503` and the rest of the backend keeps running. 🔒 = needs `Authorization: Bearer <token>` from `/auth/login`.
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/api/v1/portfolio/auth/login` | Admin login (10 failed attempts / 15 min per IP) |
+| `GET` | `/api/v1/portfolio/auth/me` 🔒 | Current admin |
+| `GET` | `/api/v1/portfolio/projects` | Published projects |
+| `GET` | `/api/v1/portfolio/projects/:idOrSlug` | One published project |
+| `GET` | `/api/v1/portfolio/projects/admin` 🔒 | All projects incl. drafts |
+| `POST` / `PUT` / `DELETE` | `/api/v1/portfolio/projects[/:id]` 🔒 | Create / edit (multipart, optional `image`) / delete |
+| `PUT` | `/api/v1/portfolio/projects/reorder` 🔒 | Save display order |
+| `GET` | `/api/v1/portfolio/resume` | Active resume |
+| `GET` / `POST` | `/api/v1/portfolio/resume/all`, `/resume` 🔒 | History / upload PDF (multipart `resume`) |
+| `PUT` | `/api/v1/portfolio/resume/:id/active` 🔒 | Switch active resume |
+| `GET` / `POST` | `/api/v1/portfolio/testimonials` | Approved reviews / submit a review (saved unapproved) |
+| `GET` / `PUT` / `DELETE` | `/api/v1/portfolio/testimonials/admin`, `/testimonials/:id` 🔒 | Moderate reviews |
+| `POST` | `/api/v1/portfolio/contact` | Contact form (saves + emails) |
+| `GET` | `/api/v1/portfolio/contact` 🔒 | Inbox |
+
 ---
 
 ## 3. Technology Stack

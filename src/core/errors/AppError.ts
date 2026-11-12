@@ -9,6 +9,7 @@ export type ErrorCode =
   | 'INVALID_API_KEY'
   | 'API_KEY_REVOKED'
   | 'DATABASE_ERROR'
+  | 'SERVICE_UNAVAILABLE'
   | 'INTERNAL_SERVER_ERROR';
 
 export class AppError extends Error {

@@ -1,4 +1,4 @@
-﻿services:
+services:
   - type: web
     name: aditya-universal-backend
     env: node
@@ -40,3 +40,24 @@
         sync: false
       - key: GEMINI_MODEL
         value: gemini-2.5-flash
+      # Portfolio module - set these in Render Dashboard > Environment
+      - key: PORTFOLIO_MONGODB_URI
+        sync: false
+      - key: PORTFOLIO_JWT_SECRET
+        sync: false
+      - key: PORTFOLIO_ADMIN_EMAIL
+        sync: false
+      - key: IMAGEKIT_PUBLIC_KEY
+        sync: false
+      - key: IMAGEKIT_PRIVATE_KEY
+        sync: false
+      - key: IMAGEKIT_URL_ENDPOINT
+        sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: 465
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false

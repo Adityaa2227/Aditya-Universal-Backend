@@ -33,6 +33,23 @@ const envSchema = z.object({
   CEREBRAS_MODEL: z.string().optional(),
   OPENROUTER_MODEL: z.string().optional(),
   GEMINI_MODEL: z.string().optional(),
+
+  // Portfolio module (adityaagarwalportfolio.vercel.app). All optional: when the
+  // database URI or JWT secret is missing, /api/v1/portfolio answers 503 instead of
+  // stopping the whole backend.
+  PORTFOLIO_MONGODB_URI: z.string().optional(),
+  PORTFOLIO_JWT_SECRET: z.string().optional(),
+  PORTFOLIO_ADMIN_EMAIL: z.string().optional(),
+  IMAGEKIT_PUBLIC_KEY: z.string().optional(),
+  IMAGEKIT_PRIVATE_KEY: z.string().optional(),
+  IMAGEKIT_URL_ENDPOINT: z.string().optional(),
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z
+    .string()
+    .optional()
+    .transform((val) => (val ? parseInt(val, 10) : undefined)),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
 });
 
 const parseEnv = () => {
