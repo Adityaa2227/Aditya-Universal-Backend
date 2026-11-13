@@ -2,7 +2,6 @@
 // Portfolio Module - Email notifications to the owner (contact messages, new reviews)
 // ============================================================================
 
-import nodemailer from 'nodemailer';
 import { env } from '../../config/env';
 import { logger } from '../../core/utils/logger';
 
@@ -22,7 +21,7 @@ interface Mail {
   replyTo?: string;
 }
 
-/** Brevo transactional API (HTTPS, so it works where hosts block SMTP ports). */
+/** Brevo transactional email API. */
 const sendViaBrevo = async (mail: Mail, to: string): Promise<void> => {
   const sender = env.BREVO_SENDER_EMAIL || to;
   const res = await fetch('https://api.brevo.com/v3/smtp/email', {
@@ -49,40 +48,23 @@ const sendViaBrevo = async (mail: Mail, to: string): Promise<void> => {
 };
 
 /**
- * Sends a mail to the portfolio owner via Brevo (if BREVO_API_KEY is set) or SMTP.
- * Returns false when email isn't configured or sending fails; never throws.
+ * Emails the portfolio owner through Brevo (the only email provider).
+ * Returns false when Brevo isn't configured or the send fails; never throws,
+ * so a mail problem never fails the visitor's request.
  */
 export const sendToOwner = async (mail: Mail, kind: string): Promise<boolean> => {
   const to = env.PORTFOLIO_ADMIN_EMAIL;
-  if (!to) return false;
-
-  if (env.BREVO_API_KEY) {
-    try {
-      await sendViaBrevo(mail, to);
-      return true;
-    } catch (err) {
-      logger.error({ err: (err as Error).message }, `Portfolio ${kind} email via Brevo failed`);
-      if (!env.SMTP_HOST) return false; // fall through to SMTP when it's configured
-    }
-  }
-
-  if (!env.SMTP_HOST || !env.SMTP_USER || !env.SMTP_PASS) {
+  if (!to || !env.BREVO_API_KEY) {
+    logger.warn(
+      `Portfolio ${kind} email skipped: BREVO_API_KEY or PORTFOLIO_ADMIN_EMAIL is not set`,
+    );
     return false;
   }
-  const port = env.SMTP_PORT ?? 465;
   try {
-    const transporter = nodemailer.createTransport({
-      host: env.SMTP_HOST,
-      port,
-      secure: port === 465,
-      auth: { user: env.SMTP_USER, pass: env.SMTP_PASS },
-      connectionTimeout: 10000,
-      greetingTimeout: 10000,
-    });
-    await transporter.sendMail({ from: env.SMTP_USER, to: env.PORTFOLIO_ADMIN_EMAIL, ...mail });
+    await sendViaBrevo(mail, to);
     return true;
   } catch (err) {
-    logger.error({ err: (err as Error).message }, `Portfolio ${kind} email failed`);
+    logger.error({ err: (err as Error).message }, `Portfolio ${kind} email via Brevo failed`);
     return false;
   }
 };

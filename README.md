@@ -34,7 +34,7 @@ Powers the Chrome Extension for **Google Forms**, **Microsoft Forms**, and job a
 | `POST` | `/api/v1/form-filler/ai-answer` | Answer a single question with AI |
 
 ### 🧑‍💻 3. Portfolio (`/api/v1/portfolio`)
-Backend for **adityaagarwalportfolio.vercel.app**: projects, resume, reviews, contact messages and the admin login. Uses its own MongoDB cluster (`PORTFOLIO_MONGODB_URI`, separate connection), ImageKit for uploads and SMTP for contact emails. Without `PORTFOLIO_MONGODB_URI` and `PORTFOLIO_JWT_SECRET` the module answers `503` and the rest of the backend keeps running. 🔒 = needs `Authorization: Bearer <token>` from `/auth/login`.
+Backend for **adityaagarwalportfolio.vercel.app**: projects, resume, reviews, contact messages and the admin login. Uses its own MongoDB cluster (`PORTFOLIO_MONGODB_URI`, separate connection), ImageKit for uploads and Brevo for contact and review emails. Without `PORTFOLIO_MONGODB_URI` and `PORTFOLIO_JWT_SECRET` the module answers `503` and the rest of the backend keeps running. 🔒 = needs `Authorization: Bearer <token>` from `/auth/login`.
 
 | Method | Endpoint | Description |
 |---|---|---|

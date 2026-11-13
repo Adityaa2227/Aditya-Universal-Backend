@@ -43,14 +43,7 @@ const envSchema = z.object({
   IMAGEKIT_PUBLIC_KEY: z.string().optional(),
   IMAGEKIT_PRIVATE_KEY: z.string().optional(),
   IMAGEKIT_URL_ENDPOINT: z.string().optional(),
-  SMTP_HOST: z.string().optional(),
-  SMTP_PORT: z
-    .string()
-    .optional()
-    .transform((val) => (val ? parseInt(val, 10) : undefined)),
-  SMTP_USER: z.string().optional(),
-  SMTP_PASS: z.string().optional(),
-  // Brevo transactional email API (preferred over SMTP when set)
+  // Brevo transactional email API (contact + review alerts)
   BREVO_API_KEY: z.string().optional(),
   BREVO_SENDER_EMAIL: z.string().optional(), // must be a verified sender in Brevo; defaults to PORTFOLIO_ADMIN_EMAIL
 });
