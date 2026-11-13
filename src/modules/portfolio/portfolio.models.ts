@@ -13,6 +13,7 @@ export interface IAdmin {
   _id: Types.ObjectId;
   username: string;
   password: string;
+  passwordChangedAt?: Date | null; // tokens issued before this are rejected
 }
 
 export interface IProject {
@@ -79,6 +80,7 @@ const adminSchema = new Schema<IAdmin>(
   {
     username: { type: String, required: true, unique: true, trim: true },
     password: { type: String, required: true },
+    passwordChangedAt: { type: Date, default: null },
   },
   { timestamps: true },
 );

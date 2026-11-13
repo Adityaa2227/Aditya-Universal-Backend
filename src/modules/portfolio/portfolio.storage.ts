@@ -30,6 +30,23 @@ export const pdfUpload = multer({
   },
 });
 
+/**
+ * Checks a file's real signature (first bytes), since the type a browser reports can be faked.
+ * Blocks e.g. HTML/SVG/scripts renamed to .png or sent with an image/pdf content type.
+ */
+export const contentMatches = (buf: Buffer, kind: 'image' | 'pdf'): boolean => {
+  if (!buf || buf.length < 12) return false;
+  if (kind === 'pdf') return buf.subarray(0, 5).toString('latin1') === '%PDF-';
+  const hex = buf.subarray(0, 12).toString('hex');
+  return (
+    hex.startsWith('ffd8ff') || // JPEG
+    hex.startsWith('89504e470d0a1a0a') || // PNG
+    buf.subarray(0, 6).toString('latin1').startsWith('GIF8') || // GIF
+    (buf.subarray(0, 4).toString('latin1') === 'RIFF' && buf.subarray(8, 12).toString('latin1') === 'WEBP') ||
+    buf.subarray(4, 12).toString('latin1').startsWith('ftypavi') // AVIF
+  );
+};
+
 /** Runs a multer single-file upload and turns its errors (e.g. file too large) into 400s. */
 export const singleFile = (upload: multer.Multer, field: string) => {
   // Cast: without a lockfile (Render's yarn install) multer and swagger-ui-express can resolve
@@ -37,7 +54,16 @@ export const singleFile = (upload: multer.Multer, field: string) => {
   const handler = upload.single(field) as unknown as RequestHandler;
   return (req: Request, res: Response, next: NextFunction): void => {
     handler(req, res, (err: unknown) => {
-      if (!err) return next();
+      if (!err) {
+        if (req.file && !contentMatches(req.file.buffer, upload === pdfUpload ? 'pdf' : 'image')) {
+          return next(
+            AppError.badRequest(
+              upload === pdfUpload ? 'That file isn’t a valid PDF.' : 'That file isn’t a valid JPG, PNG, GIF, WebP or AVIF image.',
+            ),
+          );
+        }
+        return next();
+      }
       if (err instanceof multer.MulterError) {
         const message =
           err.code === 'LIMIT_FILE_SIZE'

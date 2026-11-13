@@ -146,7 +146,7 @@ export class PortfolioController {
       {
         _id: String(admin._id),
         username: admin.username,
-        token: signAdminToken(String(admin._id)),
+        token: signAdminToken(String(admin._id), admin.passwordChangedAt),
       },
       'Logged in',
     );

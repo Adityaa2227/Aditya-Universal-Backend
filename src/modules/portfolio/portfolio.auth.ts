@@ -13,8 +13,17 @@ export interface AdminIdentity {
   username: string;
 }
 
-export const signAdminToken = (id: string): string =>
-  jwt.sign({ id }, env.PORTFOLIO_JWT_SECRET as string, { expiresIn: '30d' });
+const ALGORITHM = 'HS256' as const;
+
+/**
+ * `pv` = when the password was last changed (ms). Tokens issued before a password
+ * change stop working, so changing the password logs out every other session.
+ */
+export const signAdminToken = (id: string, passwordChangedAt?: Date | null): string =>
+  jwt.sign({ id, pv: passwordChangedAt ? passwordChangedAt.getTime() : 0 }, env.PORTFOLIO_JWT_SECRET as string, {
+    algorithm: ALGORITHM,
+    expiresIn: '30d',
+  });
 
 /** Requires "Authorization: Bearer <token>". The admin is stored on res.locals.admin. */
 export const requireAdmin = async (
@@ -30,14 +39,21 @@ export const requireAdmin = async (
 
     let payload: jwt.JwtPayload | string;
     try {
-      payload = jwt.verify(header.slice(7), env.PORTFOLIO_JWT_SECRET as string);
+      payload = jwt.verify(header.slice(7), env.PORTFOLIO_JWT_SECRET as string, {
+        algorithms: [ALGORITHM],
+      });
     } catch {
       throw AppError.unauthorized('Your session expired. Log in again.');
     }
 
     const id = typeof payload === 'object' ? payload.id : undefined;
-    const admin = id ? await getModels().Admin.findById(id).select('username').lean() : null;
-    if (!admin) {
+    if (typeof id !== 'string' || !/^[a-f\d]{24}$/i.test(id)) {
+      throw AppError.unauthorized('Your session expired. Log in again.');
+    }
+    const admin = await getModels().Admin.findById(id).select('username passwordChangedAt').lean();
+    const issuedForPassword = typeof payload === 'object' ? Number(payload.pv) || 0 : 0;
+    const currentPassword = admin?.passwordChangedAt ? new Date(admin.passwordChangedAt).getTime() : 0;
+    if (!admin || issuedForPassword < currentPassword) {
       throw AppError.unauthorized('Your session expired. Log in again.');
     }
 

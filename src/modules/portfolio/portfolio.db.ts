@@ -24,7 +24,10 @@ export const getPortfolioConnection = (): Connection => {
   if (!connection) {
     connection = mongoose.createConnection(env.PORTFOLIO_MONGODB_URI, {
       serverSelectionTimeoutMS: 8000,
-      autoIndex: env.NODE_ENV !== 'production',
+      // Always build indexes: these collections are small, and they enforce uniqueness
+      // (invite tokens, post slugs, error fingerprints, settings) and the analytics TTL
+      // (events auto-delete after ~13 months).
+      autoIndex: true,
     });
     connection.on('connected', () => logger.info('Portfolio MongoDB connection established'));
     connection.on('error', (err) => logger.error({ err }, 'Portfolio MongoDB connection error'));

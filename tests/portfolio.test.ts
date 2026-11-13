@@ -201,3 +201,40 @@ describe('new public endpoints validate input', () => {
     expect((await request(app).post(`${API}/reports/weekly/test`)).status).toBe(401);
   });
 });
+
+describe('upload content checks', () => {
+  it('accepts real image/PDF signatures and rejects disguised files', async () => {
+    const { contentMatches } = await import('../src/modules/portfolio/portfolio.storage');
+    const png = Buffer.from('89504e470d0a1a0a0000000d49484452', 'hex');
+    const jpg = Buffer.from('ffd8ffe000104a4649460001', 'hex');
+    const pdf = Buffer.from('%PDF-1.7\n%\xe2\xe3\xcf\xd3\n', 'latin1');
+    const html = Buffer.from('<html><script>alert(1)</script></html>');
+    const svg = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"/>');
+    expect(contentMatches(png, 'image')).toBe(true);
+    expect(contentMatches(jpg, 'image')).toBe(true);
+    expect(contentMatches(pdf, 'pdf')).toBe(true);
+    expect(contentMatches(html, 'image')).toBe(false);
+    expect(contentMatches(svg, 'image')).toBe(false);
+    expect(contentMatches(png, 'pdf')).toBe(false);
+  });
+});
+
+describe('admin tokens', () => {
+  it('rejects an unsigned (alg "none") token', async () => {
+    const none = jwt.sign({ id: '000000000000000000000000' }, '', { algorithm: 'none' });
+    const res = await request(app).get(`${API}/contact`).set('Authorization', `Bearer ${none}`);
+    expect(res.status).toBe(401);
+  });
+  it('rejects a token signed with a different algorithm', async () => {
+    const hs512 = jwt.sign({ id: '000000000000000000000000' }, 'test-secret', {
+      algorithm: 'HS512',
+    });
+    const res = await request(app).get(`${API}/contact`).set('Authorization', `Bearer ${hs512}`);
+    expect(res.status).toBe(401);
+  });
+  it('rejects a token whose id is not an ObjectId', async () => {
+    const bad = jwt.sign({ id: { $ne: null } }, 'test-secret', { algorithm: 'HS256' });
+    const res = await request(app).get(`${API}/contact`).set('Authorization', `Bearer ${bad}`);
+    expect(res.status).toBe(401);
+  });
+});

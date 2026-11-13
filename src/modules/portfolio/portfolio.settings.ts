@@ -13,7 +13,7 @@ import { getPortfolioConnection } from './portfolio.db';
 import { getModels, passwordMatches } from './portfolio.models';
 import { sendSuccess } from '../../core/utils/response';
 import { AppError } from '../../core/errors/AppError';
-import type { AdminIdentity } from './portfolio.auth';
+import { signAdminToken, type AdminIdentity } from './portfolio.auth';
 
 export interface ISettings {
   key: 'site';
@@ -134,8 +134,10 @@ export const SettingsController = {
       throw AppError.badRequest('Your current password is wrong.');
     }
     admin.password = newPassword; // hashed by the model's pre-save hook
+    admin.passwordChangedAt = new Date(); // logs out every other session
     await admin.save();
-    sendSuccess(res, null, 'Password changed');
+    // A fresh token keeps this session logged in.
+    sendSuccess(res, { token: signAdminToken(String(admin._id), admin.passwordChangedAt) }, 'Password changed');
   },
 };
 
