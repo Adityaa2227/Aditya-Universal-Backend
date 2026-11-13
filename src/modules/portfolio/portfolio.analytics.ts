@@ -24,6 +24,7 @@ export const EVENT_TYPES = [
   'contact_submit',
   'review_submit',
   'engagement', // time on page + scroll depth, sent when leaving a page
+  'chat_question', // question asked in the "Ask my portfolio" chat (label = the question)
 ] as const;
 
 export interface IEvent {
@@ -271,11 +272,9 @@ const top = (field: string, match: Record<string, unknown>, limit = 10): Pipelin
 ];
 
 /** GET /analytics/summary?days=30 (admin) - everything the dashboard shows, in one call. */
-export const analyticsSummary = async (
-  req: Request,
-  res: import('express').Response,
-): Promise<void> => {
-  const days = Math.min(400, Math.max(1, Number(req.query.days) || 30));
+/** Everything the dashboard (and the weekly email) shows, for the last `daysInput` days. */
+export const computeSummary = async (daysInput: number) => {
+  const days = Math.min(400, Math.max(1, Math.round(daysInput) || 30));
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
   const prevSince = new Date(since.getTime() - days * 24 * 60 * 60 * 1000);
   const E = Event();
@@ -298,6 +297,7 @@ export const analyticsSummary = async (
     contacts,
     reviews,
     outboundClicks,
+    chatQuestions,
     daily,
     topPages,
     topProjects,
@@ -313,6 +313,7 @@ export const analyticsSummary = async (
     engagement,
     recent,
     hours,
+    questions,
   ] = await Promise.all([
     count(views),
     distinct('visitorId', views),
@@ -324,6 +325,7 @@ export const analyticsSummary = async (
     count({ ...inRange, type: 'contact_submit' }),
     count({ ...inRange, type: 'review_submit' }),
     count({ ...inRange, type: 'outbound' }),
+    count({ ...inRange, type: 'chat_question' }),
     E.aggregate([
       { $match: views },
       {
@@ -371,6 +373,11 @@ export const analyticsSummary = async (
       { $project: { _id: 0, hour: '$_id', count: 1 } },
       { $sort: { hour: 1 } },
     ]),
+    E.find({ ...inRange, type: 'chat_question' })
+      .sort({ createdAt: -1 })
+      .limit(30)
+      .select('label country device createdAt')
+      .lean(),
   ]);
 
   // Sessions that saw only one page
@@ -389,7 +396,7 @@ export const analyticsSummary = async (
   const eng = engagement[0] as { avgDuration?: number; avgScroll?: number } | undefined;
   const b = bounce[0] as { total: number; single: number } | undefined;
 
-  sendSuccess(res, {
+  return {
     range: { days, since },
     totals: {
       pageviews,
@@ -405,6 +412,7 @@ export const analyticsSummary = async (
       contacts,
       reviews,
       outboundClicks,
+      chatQuestions,
       change: {
         pageviews: prevPageviews
           ? Math.round(((pageviews - prevPageviews) / prevPageviews) * 100)
@@ -428,5 +436,46 @@ export const analyticsSummary = async (
     sections,
     outbound,
     recent,
-  });
+    questions: questions.map((q) => ({
+      question: q.label,
+      country: q.country,
+      device: q.device,
+      at: q.createdAt,
+    })),
+  };
 };
+
+/** GET /analytics/summary?days=30 (admin) */
+export const analyticsSummary = async (
+  req: Request,
+  res: import('express').Response,
+): Promise<void> => {
+  sendSuccess(res, await computeSummary(Number(req.query.days) || 30));
+};
+
+/** Records a chat question (called by the chat endpoint; never throws). */
+export const logChatQuestion = async (q: {
+  question: string;
+  visitorId?: string;
+  sessionId?: string;
+  userAgent: string;
+}): Promise<void> => {
+  try {
+    const ua = parseUserAgent(q.userAgent);
+    if (ua.device === 'bot') return;
+    await Event().create({
+      type: 'chat_question',
+      path: '/chat',
+      label: q.question.slice(0, 300),
+      visitorId: q.visitorId || 'unknown-visitor',
+      sessionId: q.sessionId || 'unknown-session',
+      source: 'direct',
+      ...ua,
+    });
+  } catch {
+    /* analytics must never affect the chat */
+  }
+};
+
+/** Read-only access for the weekly report. */
+export const getEventModel = () => Event();

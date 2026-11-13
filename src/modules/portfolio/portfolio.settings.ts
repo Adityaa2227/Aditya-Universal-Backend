@@ -23,6 +23,9 @@ export interface ISettings {
     detail: string; // optional second line
   };
   contactAutoReply: boolean;
+  weeklyReport: boolean; // Monday summary email
+  errorAlerts: boolean; // email when the site or API hits an error
+  lastWeeklyReportAt?: Date | null;
   updatedAt?: Date;
 }
 
@@ -35,6 +38,9 @@ const settingsSchema = new Schema<ISettings>(
       detail: { type: String, default: '' },
     },
     contactAutoReply: { type: Boolean, default: true },
+    weeklyReport: { type: Boolean, default: true },
+    errorAlerts: { type: Boolean, default: true },
+    lastWeeklyReportAt: { type: Date, default: null },
   },
   { timestamps: true },
 );
@@ -46,17 +52,23 @@ const Settings = (): Model<ISettings> => {
   return SettingsModel;
 };
 
-const DEFAULTS: Omit<ISettings, 'key'> = {
+type PublicSettings = Omit<ISettings, 'key' | 'lastWeeklyReportAt'>;
+
+const DEFAULTS: PublicSettings = {
   openToWork: { enabled: true, text: 'Open to SDE roles', detail: '' },
   contactAutoReply: true,
+  weeklyReport: true,
+  errorAlerts: true,
 };
 
-export const getSettings = async (): Promise<Omit<ISettings, 'key'>> => {
+export const getSettings = async (): Promise<PublicSettings> => {
   const doc = await Settings().findOne({ key: 'site' }).lean();
   return doc
     ? {
         openToWork: { ...DEFAULTS.openToWork, ...doc.openToWork },
         contactAutoReply: doc.contactAutoReply ?? true,
+        weeklyReport: doc.weeklyReport ?? true,
+        errorAlerts: doc.errorAlerts ?? true,
         updatedAt: doc.updatedAt,
       }
     : DEFAULTS;
@@ -71,6 +83,8 @@ export const settingsInputSchema = z.object({
     })
     .optional(),
   contactAutoReply: z.boolean().optional(),
+  weeklyReport: z.boolean().optional(),
+  errorAlerts: z.boolean().optional(),
 });
 
 export const passwordChangeSchema = z
@@ -101,6 +115,8 @@ export const SettingsController = {
     const set: Record<string, unknown> = {};
     if (input.openToWork) set.openToWork = input.openToWork;
     if (input.contactAutoReply !== undefined) set.contactAutoReply = input.contactAutoReply;
+    if (input.weeklyReport !== undefined) set.weeklyReport = input.weeklyReport;
+    if (input.errorAlerts !== undefined) set.errorAlerts = input.errorAlerts;
     await Settings().updateOne(
       { key: 'site' },
       { $set: set, $setOnInsert: { key: 'site' } },
@@ -121,4 +137,24 @@ export const SettingsController = {
     await admin.save();
     sendSuccess(res, null, 'Password changed');
   },
+};
+
+/**
+ * Marks this week's report as sent if it hasn't been yet. Returns true only for the
+ * one caller that claims the slot (safe with restarts and multiple instances).
+ */
+export const claimWeeklyReport = async (slot: Date): Promise<boolean> => {
+  try {
+    const res = await Settings().updateOne(
+      {
+        key: 'site',
+        $or: [{ lastWeeklyReportAt: null }, { lastWeeklyReportAt: { $lt: slot } }],
+      },
+      { $set: { lastWeeklyReportAt: new Date() }, $setOnInsert: { key: 'site' } },
+      { upsert: true },
+    );
+    return res.modifiedCount + res.upsertedCount > 0;
+  } catch {
+    return false; // duplicate key: the settings document exists and this week was already claimed
+  }
 };

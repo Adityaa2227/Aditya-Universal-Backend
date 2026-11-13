@@ -27,6 +27,10 @@ import {
   settingsInputSchema,
 } from './portfolio.settings';
 import { analyticsSummary, recordEvent } from './portfolio.analytics';
+import { answerChat, chatInputSchema } from './portfolio.chat';
+import { sendWeeklyReportNow, startWeeklyReportScheduler } from './portfolio.reports';
+import { InviteController, inviteInputSchema } from './portfolio.invites';
+import { captureServerErrors, ErrorsController, reportClientError } from './portfolio.errors';
 
 const router = Router();
 
@@ -204,5 +208,51 @@ const eventLimiter = rateLimit({
 });
 router.post('/analytics/event', eventLimiter, recordEvent);
 router.get('/analytics/summary', requireAdmin, wrap(analyticsSummary));
+
+// "Ask my portfolio" chat: 20 questions per 10 minutes per visitor IP
+const chatLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: tooMany(
+    'You’ve asked a lot of questions quickly. Try again in a few minutes, or use the contact form.',
+  ),
+});
+router.post('/chat', chatLimiter, validateRequest({ body: chatInputSchema }), wrap(answerChat));
+
+// Weekly report: send now (for testing / on demand)
+router.post('/reports/weekly/test', requireAdmin, aiLimiter, wrap(sendWeeklyReportNow));
+
+// "Request a review" links
+router.get('/review-invites', requireAdmin, wrap(InviteController.list));
+router.post(
+  '/review-invites',
+  requireAdmin,
+  validateRequest({ body: inviteInputSchema }),
+  wrap(InviteController.create),
+);
+router.delete('/review-invites/:id', requireAdmin, byId, wrap(InviteController.remove));
+router.get('/review-invites/:token', wrap(InviteController.lookup));
+
+// Error tracking: reports from the site (quietly limited), list for the admin panel
+const errorLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 20,
+  standardHeaders: false,
+  legacyHeaders: false,
+  handler: (_req: Request, res: Response) => {
+    res.status(204).end();
+  },
+});
+router.post('/errors', errorLimiter, wrap(reportClientError));
+router.get('/errors', requireAdmin, wrap(ErrorsController.list));
+router.put('/errors/:id', requireAdmin, byId, wrap(ErrorsController.update));
+router.delete('/errors/:id', requireAdmin, byId, wrap(ErrorsController.remove));
+
+// Record server errors (5xx) from this module, then let the central handler answer
+router.use(captureServerErrors);
+
+startWeeklyReportScheduler();
 
 export const portfolioRoutes = router;

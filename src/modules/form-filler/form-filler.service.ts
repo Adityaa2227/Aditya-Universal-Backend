@@ -69,6 +69,10 @@ PROJECTS
    - Launched a real-time bus tracking web application for campus commute, serving 300+ users at BIT Mesra, with OpenStreetMap and Firebase Authentication delivering 98% live location accuracy.
    - Enabled 5-second real-time location updates by storing only current coordinates in Firebase, optimizing database performance.
 
+LEADERSHIP AND POSITIONS OF RESPONSIBILITY
+- Vice President, IGNITE Club (technical club), BIT Mesra (2024 – 2026)
+- Treasurer, DIVYA Club, BIT Mesra (2024 – 2026)
+
 EDUCATION
 - Bachelor of Technology (B.Tech) in Computer Science and Engineering (2023 – 2027)
 - Birla Institute of Technology (BIT), Mesra | CGPA: 8.7/10

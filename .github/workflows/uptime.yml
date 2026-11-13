@@ -1,0 +1,36 @@
+# Uptime monitor: every 15 minutes, checks the backend, the portfolio API and the
+# portfolio website. If any check fails, this run fails and GitHub emails the
+# account that owns this workflow (Settings > Notifications > Actions: "failed workflows only").
+name: Uptime
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch: {}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check services
+        shell: bash
+        run: |
+          fail=0
+          check () {
+            local name="$1" url="$2" expect="$3"
+            for attempt in 1 2 3; do
+              body=$(curl -s -m 30 -w '\n%{http_code}' "$url") || body=$'\n000'
+              code=$(echo "$body" | tail -n1)
+              if [ "$code" = "200" ] && echo "$body" | grep -q "$expect"; then
+                echo "OK    $name ($code)"; return 0
+              fi
+              sleep 10
+            done
+            echo "::error title=$name is down::$url answered $code"
+            fail=1
+          }
+          check "Backend health"   "https://aditya-universal-backend.onrender.com/health"                   '"status"'
+          check "Portfolio API"    "https://aditya-universal-backend.onrender.com/api/v1/portfolio/projects" '"success":true'
+          check "Portfolio website" "https://adityaagarwalportfolio.vercel.app/"                             'id="root"'
+          exit $fail

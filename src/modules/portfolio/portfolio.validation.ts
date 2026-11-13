@@ -24,6 +24,7 @@ export const testimonialSchema = z.object({
   message: z.string().trim().min(1, 'Write your review'),
   rating: z.coerce.number().int().min(1).max(5).optional().default(5),
   website: z.string().optional(), // spam trap: only bots fill it
+  inviteToken: z.string().trim().max(64).optional(), // from a "request a review" link
 });
 
 export const testimonialUpdateSchema = z

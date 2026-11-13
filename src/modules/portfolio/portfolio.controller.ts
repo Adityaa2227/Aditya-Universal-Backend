@@ -18,6 +18,7 @@ import {
   sendReviewNotification,
 } from './portfolio.mailer';
 import { getSettings } from './portfolio.settings';
+import { findUsableInvite } from './portfolio.invites';
 import { Post } from './portfolio.blog';
 import { draftProjectFromNotes, draftReply, polishReview } from './portfolio.ai';
 
@@ -324,26 +325,34 @@ export class PortfolioController {
 
   /** POST /testimonials - public submission, always saved unapproved */
   static submitTestimonial = handle(async (req, res) => {
-    const { name, role, message, rating, website } = req.body as {
+    const { name, role, message, rating, website, inviteToken } = req.body as {
       name: string;
       role: string;
       message: string;
       rating: number;
       website?: string;
+      inviteToken?: string;
     };
     // Spam trap: pretend success so bots don't retry.
     if (website) {
       sendCreated(res, null, 'Review received');
       return;
     }
-    await getModels().Testimonial.create({
+    const invite = await findUsableInvite(inviteToken);
+    const review = await getModels().Testimonial.create({
       name,
       role,
       message,
       rating,
       isApproved: false,
       isFeatured: false,
+      fromInvite: Boolean(invite),
     });
+    if (invite) {
+      invite.usedAt = new Date();
+      invite.reviewId = review._id;
+      await invite.save();
+    }
     // Tell the owner a review is waiting (doesn't block or fail the visitor's request).
     void sendReviewNotification({ name, role, message, rating });
     sendCreated(res, null, 'Review received. It will appear once approved.');

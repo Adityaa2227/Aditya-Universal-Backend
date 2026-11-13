@@ -54,6 +54,7 @@ export interface ITestimonial {
   rating: number;
   isApproved: boolean;
   isFeatured: boolean;
+  fromInvite?: boolean; // submitted through a personal "request a review" link
 }
 
 export interface IContactMessage {
@@ -133,6 +134,7 @@ const testimonialSchema = new Schema<ITestimonial>(
     rating: { type: Number, min: 1, max: 5, default: 5 },
     isApproved: { type: Boolean, default: false },
     isFeatured: { type: Boolean, default: false },
+    fromInvite: { type: Boolean, default: false },
   },
   { timestamps: true },
 );

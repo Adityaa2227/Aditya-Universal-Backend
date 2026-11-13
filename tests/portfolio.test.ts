@@ -155,3 +155,49 @@ describe('ids are validated', () => {
     expect(res.status).toBeGreaterThanOrEqual(400);
   }, 20000);
 });
+
+describe('weekly report schedule (Monday 09:00 IST)', () => {
+  it('a Wednesday maps back to that week’s Monday 09:00 IST (03:30 UTC)', async () => {
+    const { currentWeekSlot } = await import('../src/modules/portfolio/portfolio.reports');
+    // Wed 11 Nov 2026, 12:00 UTC
+    expect(currentWeekSlot(new Date('2026-11-11T12:00:00Z')).toISOString()).toBe(
+      '2026-11-09T03:30:00.000Z',
+    );
+  });
+  it('Monday 08:59 IST is still in the previous week’s slot', async () => {
+    const { currentWeekSlot } = await import('../src/modules/portfolio/portfolio.reports');
+    // Mon 16 Nov 2026 08:59 IST = 03:29 UTC -> slot = Mon 16 Nov 09:00 IST, which is still in the future
+    const slot = currentWeekSlot(new Date('2026-11-16T03:29:00Z'));
+    expect(slot.toISOString()).toBe('2026-11-16T03:30:00.000Z');
+    expect(slot.getTime()).toBeGreaterThan(new Date('2026-11-16T03:29:00Z').getTime());
+  });
+  it('Sunday night IST belongs to the Monday six days earlier', async () => {
+    const { currentWeekSlot } = await import('../src/modules/portfolio/portfolio.reports');
+    // Sun 15 Nov 2026 23:30 IST = 18:00 UTC
+    expect(currentWeekSlot(new Date('2026-11-15T18:00:00Z')).toISOString()).toBe(
+      '2026-11-09T03:30:00.000Z',
+    );
+  });
+});
+
+describe('new public endpoints validate input', () => {
+  it('chat: rejects an empty or too-long question', async () => {
+    expect((await request(app).post(`${API}/chat`).send({ question: '' })).status).toBe(400);
+    expect(
+      (
+        await request(app)
+          .post(`${API}/chat`)
+          .send({ question: 'x'.repeat(501) })
+      ).status,
+    ).toBe(400);
+  });
+  it('error reports: always 204, even when malformed', async () => {
+    expect((await request(app).post(`${API}/errors`).send({})).status).toBe(204);
+  });
+  it('admin-only: invites, errors, weekly report', async () => {
+    expect((await request(app).get(`${API}/review-invites`)).status).toBe(401);
+    expect((await request(app).post(`${API}/review-invites`).send({ name: 'X' })).status).toBe(401);
+    expect((await request(app).get(`${API}/errors`)).status).toBe(401);
+    expect((await request(app).post(`${API}/reports/weekly/test`)).status).toBe(401);
+  });
+});
