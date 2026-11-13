@@ -4,7 +4,7 @@
 // Files go straight to ImageKit: Render's disk is wiped on every restart.
 // ============================================================================
 
-import { Request, Response, NextFunction } from 'express';
+import { Request, RequestHandler, Response, NextFunction } from 'express';
 import multer from 'multer';
 import ImageKit from 'imagekit';
 import { env } from '../../config/env';
@@ -31,23 +31,31 @@ export const pdfUpload = multer({
 });
 
 /** Runs a multer single-file upload and turns its errors (e.g. file too large) into 400s. */
-export const singleFile =
-  (upload: multer.Multer, field: string) =>
-  (req: Request, res: Response, next: NextFunction): void => {
-    upload.single(field)(req, res, (err: unknown) => {
+export const singleFile = (upload: multer.Multer, field: string) => {
+  // Cast: without a lockfile (Render's yarn install) multer and swagger-ui-express can resolve
+  // different copies of the Express type definitions; at runtime it's the same Express.
+  const handler = upload.single(field) as unknown as RequestHandler;
+  return (req: Request, res: Response, next: NextFunction): void => {
+    handler(req, res, (err: unknown) => {
       if (!err) return next();
       if (err instanceof multer.MulterError) {
         const message =
-          err.code === 'LIMIT_FILE_SIZE' ? 'That file is too large.' : `Upload failed: ${err.message}`;
+          err.code === 'LIMIT_FILE_SIZE'
+            ? 'That file is too large.'
+            : `Upload failed: ${err.message}`;
         return next(AppError.badRequest(message));
       }
       return next(err);
     });
   };
+};
 
 let imagekit: ImageKit | null = null;
 
-export const uploadToImageKit = async (file: Express.Multer.File, folder: string): Promise<string> => {
+export const uploadToImageKit = async (
+  file: Express.Multer.File,
+  folder: string,
+): Promise<string> => {
   if (!env.IMAGEKIT_PUBLIC_KEY || !env.IMAGEKIT_PRIVATE_KEY || !env.IMAGEKIT_URL_ENDPOINT) {
     throw new AppError(
       'File uploads are not configured on the server (IMAGEKIT_* settings are missing).',
