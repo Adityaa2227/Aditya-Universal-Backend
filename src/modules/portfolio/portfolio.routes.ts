@@ -21,6 +21,7 @@ import {
   testimonialUpdateSchema,
 } from './portfolio.validation';
 import { BlogController, postDraftSchema, postInputSchema } from './portfolio.blog';
+import { coverInputSchema, generateCover } from './portfolio.images';
 import {
   passwordChangeSchema,
   SettingsController,
@@ -179,6 +180,13 @@ router.post(
   aiLimiter,
   validateRequest({ body: postDraftSchema }),
   wrap(BlogController.aiDraft),
+);
+router.post(
+  '/posts/ai-cover',
+  requireAdmin,
+  aiLimiter,
+  validateRequest({ body: coverInputSchema }),
+  wrap(generateCover),
 );
 router.get('/posts/:slug', wrap(BlogController.get));
 router.post(

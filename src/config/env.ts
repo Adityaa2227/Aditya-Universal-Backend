@@ -43,6 +43,9 @@ const envSchema = z.object({
   IMAGEKIT_PUBLIC_KEY: z.string().optional(),
   IMAGEKIT_PRIVATE_KEY: z.string().optional(),
   IMAGEKIT_URL_ENDPOINT: z.string().optional(),
+  // AI cover images for blog posts (Cloudflare Workers AI, FLUX.1 schnell)
+  CLOUDFLARE_ACCOUNT_ID: z.string().optional(),
+  CLOUDFLARE_AI_TOKEN: z.string().optional(),
   // Brevo transactional email API (contact + review alerts)
   BREVO_API_KEY: z.string().optional(),
   BREVO_SENDER_EMAIL: z.string().optional(), // must be a verified sender in Brevo; defaults to PORTFOLIO_ADMIN_EMAIL
