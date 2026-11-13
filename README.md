@@ -52,6 +52,20 @@ Backend for **adityaagarwalportfolio.vercel.app**: projects, resume, reviews, co
 | `GET` / `PUT` / `DELETE` | `/api/v1/portfolio/testimonials/admin`, `/testimonials/:id` 🔒 | Moderate reviews |
 | `POST` | `/api/v1/portfolio/contact` | Contact form (saves + emails) |
 | `GET` | `/api/v1/portfolio/contact` 🔒 | Inbox |
+| `DELETE` | `/api/v1/portfolio/contact` 🔒 | Delete selected messages (`{ ids }`) |
+| `POST` | `/api/v1/portfolio/contact/:id/ai-reply` 🔒 | AI reply draft (nothing is sent) |
+| `POST` | `/api/v1/portfolio/testimonials/:id/ai-polish` 🔒 | AI typo/grammar suggestion |
+| `POST` | `/api/v1/portfolio/uploads/image` 🔒 | Upload an image to ImageKit (gallery, blog covers) |
+| `GET` / `PUT` | `/api/v1/portfolio/settings` (PUT 🔒) | Open-to-work badge, contact auto-reply |
+| `PUT` | `/api/v1/portfolio/auth/password` 🔒 | Change admin password |
+| `GET` | `/api/v1/portfolio/posts`, `/posts/:slug` | Published blog posts |
+| `GET` / `POST` / `PUT` / `DELETE` | `/api/v1/portfolio/posts/admin`, `/posts[/:id]` 🔒 | Manage posts |
+| `POST` | `/api/v1/portfolio/posts/ai-draft` 🔒 | AI blog draft from rough notes |
+| `POST` | `/api/v1/portfolio/analytics/event` | Cookie-free visitor events (always 204) |
+| `GET` | `/api/v1/portfolio/analytics/summary?days=30` 🔒 | Dashboard data |
+| `GET` | `/api/v1/portfolio/sitemap.xml` | Live sitemap (projects + posts) |
+
+Tests: `npm test` (vitest + supertest; never touches a real database).
 
 ---
 

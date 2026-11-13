@@ -20,8 +20,22 @@ import {
   testimonialSchema,
   testimonialUpdateSchema,
 } from './portfolio.validation';
+import { BlogController, postDraftSchema, postInputSchema } from './portfolio.blog';
+import {
+  passwordChangeSchema,
+  SettingsController,
+  settingsInputSchema,
+} from './portfolio.settings';
+import { analyticsSummary, recordEvent } from './portfolio.analytics';
 
 const router = Router();
+
+/** Passes errors from async handlers to the central error handler (Express 4 doesn't). */
+const wrap =
+  (fn: (req: Request, res: Response) => Promise<void>) =>
+  (req: Request, res: Response, next: NextFunction): void => {
+    fn(req, res).catch(next);
+  };
 
 // Without its database + JWT secret the module stays off instead of breaking the backend.
 router.use((_req: Request, _res: Response, next: NextFunction) => {
@@ -132,5 +146,63 @@ router.delete(
   C.deleteMessages,
 );
 router.post('/contact/:id/ai-reply', requireAdmin, aiLimiter, byId, C.draftMessageReply);
+
+// Image uploads for project galleries and blog covers
+router.post('/uploads/image', requireAdmin, singleFile(imageUpload, 'image'), C.uploadImage);
+
+// Site settings (open-to-work badge, contact auto-reply) and password change
+router.get('/settings', wrap(SettingsController.get));
+router.put(
+  '/settings',
+  requireAdmin,
+  validateRequest({ body: settingsInputSchema }),
+  wrap(SettingsController.update),
+);
+router.put(
+  '/auth/password',
+  requireAdmin,
+  loginLimiter,
+  validateRequest({ body: passwordChangeSchema }),
+  wrap(SettingsController.changePassword),
+);
+
+// Blog (static paths before "/:slug")
+router.get('/posts', wrap(BlogController.list));
+router.get('/posts/admin', requireAdmin, wrap(BlogController.listAll));
+router.post(
+  '/posts/ai-draft',
+  requireAdmin,
+  aiLimiter,
+  validateRequest({ body: postDraftSchema }),
+  wrap(BlogController.aiDraft),
+);
+router.get('/posts/:slug', wrap(BlogController.get));
+router.post(
+  '/posts',
+  requireAdmin,
+  validateRequest({ body: postInputSchema }),
+  wrap(BlogController.create),
+);
+router.put(
+  '/posts/:id',
+  requireAdmin,
+  byId,
+  validateRequest({ body: postInputSchema }),
+  wrap(BlogController.update),
+);
+router.delete('/posts/:id', requireAdmin, byId, wrap(BlogController.remove));
+
+// Analytics: events from the site (generous limit), summary for the admin dashboard
+const eventLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 120,
+  standardHeaders: false,
+  legacyHeaders: false,
+  handler: (_req: Request, res: Response) => {
+    res.status(204).end();
+  },
+});
+router.post('/analytics/event', eventLimiter, recordEvent);
+router.get('/analytics/summary', requireAdmin, wrap(analyticsSummary));
 
 export const portfolioRoutes = router;

@@ -12,7 +12,13 @@ import { AppError } from '../../core/errors/AppError';
 import { getModels, IProject, passwordMatches, toSlug } from './portfolio.models';
 import { signAdminToken } from './portfolio.auth';
 import { uploadToImageKit } from './portfolio.storage';
-import { sendContactNotification, sendReviewNotification } from './portfolio.mailer';
+import {
+  sendContactAutoReply,
+  sendContactNotification,
+  sendReviewNotification,
+} from './portfolio.mailer';
+import { getSettings } from './portfolio.settings';
+import { Post } from './portfolio.blog';
 import { draftProjectFromNotes, draftReply, polishReview } from './portfolio.ai';
 
 type Handler = (req: Request, res: Response) => Promise<unknown>;
@@ -81,6 +87,26 @@ const parseProjectInput = (body: Record<string, unknown>): Partial<IProject> => 
   if (tags) out.tags = tags;
   const features = toList(body.features, /\r?\n/);
   if (features) out.features = features;
+
+  // Screenshot gallery: JSON array string (multipart) or array (JSON body) of http(s) URLs
+  if (body.galleryImages !== undefined) {
+    let gallery: unknown = body.galleryImages;
+    if (typeof gallery === 'string') {
+      try {
+        gallery = JSON.parse(gallery || '[]');
+      } catch {
+        throw AppError.badRequest('galleryImages must be a list of image URLs');
+      }
+    }
+    if (!Array.isArray(gallery))
+      throw AppError.badRequest('galleryImages must be a list of image URLs');
+    const urls = gallery.map((u) => String(u).trim()).filter(Boolean);
+    if (urls.length > 12) throw AppError.badRequest('Up to 12 gallery images');
+    if (urls.some((u) => !/^https?:\/\//i.test(u))) {
+      throw AppError.badRequest('Gallery images must be http(s) URLs');
+    }
+    out.galleryImages = urls;
+  }
 
   const isFeatured = toBool(body.isFeatured);
   if (isFeatured !== undefined) out.isFeatured = isFeatured;
@@ -231,6 +257,13 @@ export class PortfolioController {
     sendSuccess(res, { _id: req.params.id }, 'Project deleted');
   });
 
+  /** POST /uploads/image?folder=projects|blog (admin, multipart "image") - returns the ImageKit URL */
+  static uploadImage = handle(async (req, res) => {
+    if (!req.file) throw AppError.badRequest('Choose an image to upload.');
+    const folder = req.query.folder === 'blog' ? '/portfolio/blog' : '/portfolio/projects';
+    sendCreated(res, { url: await uploadToImageKit(req.file, folder) }, 'Image uploaded');
+  });
+
   // ----------------------------------------------------------------------------
   // Resume
   // ----------------------------------------------------------------------------
@@ -362,6 +395,10 @@ export class PortfolioController {
     };
     const saved = await getModels().ContactMessage.create(msg);
     const emailed = await sendContactNotification(msg);
+    // Confirmation to the sender, if switched on in Admin -> Settings (never blocks the request).
+    void getSettings()
+      .then((settings) => (settings.contactAutoReply ? sendContactAutoReply(msg) : false))
+      .catch(() => false);
     sendCreated(res, { _id: String(saved._id), emailed }, 'Message sent');
   });
 
@@ -403,6 +440,22 @@ export class PortfolioController {
           priority: '0.6',
         })),
     ];
+    // Published blog posts
+    const posts = await Post()
+      .find({ isPublished: true })
+      .select('slug updatedAt')
+      .sort({ publishedAt: -1 })
+      .lean();
+    if (posts.length) {
+      urls.push({ loc: '/blog', lastmod: day(posts[0].updatedAt), priority: '0.7' });
+      posts.forEach((p) =>
+        urls.push({
+          loc: `/blog/${encodeURIComponent(p.slug)}`,
+          lastmod: day(p.updatedAt),
+          priority: '0.6',
+        }),
+      );
+    }
     const entries = urls.map(
       (u) =>
         `  <url><loc>${site}${u.loc}</loc><lastmod>${u.lastmod}</lastmod><priority>${u.priority}</priority></url>`,

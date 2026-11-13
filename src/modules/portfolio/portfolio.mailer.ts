@@ -22,8 +22,9 @@ interface Mail {
 }
 
 /** Brevo transactional email API. */
-const sendViaBrevo = async (mail: Mail, to: string): Promise<void> => {
-  const sender = env.BREVO_SENDER_EMAIL || to;
+const sendViaBrevo = async (mail: Mail, to: string, fromName = 'Portfolio'): Promise<void> => {
+  // Sender must be verified in Brevo: BREVO_SENDER_EMAIL, else the owner's address.
+  const sender = env.BREVO_SENDER_EMAIL || env.PORTFOLIO_ADMIN_EMAIL || to;
   const res = await fetch('https://api.brevo.com/v3/smtp/email', {
     method: 'POST',
     headers: {
@@ -32,7 +33,7 @@ const sendViaBrevo = async (mail: Mail, to: string): Promise<void> => {
       Accept: 'application/json',
     },
     body: JSON.stringify({
-      sender: { name: 'Portfolio', email: sender },
+      sender: { name: fromName, email: sender },
       to: [{ email: to }],
       subject: mail.subject,
       htmlContent: mail.html,
@@ -113,4 +114,36 @@ export const sendReviewNotification = (review: ReviewNotification): Promise<bool
     },
     'review',
   );
+};
+
+/** Confirmation sent to someone who used the contact form (their reply goes to the owner). */
+export const sendContactAutoReply = async (visitor: {
+  name: string;
+  email: string;
+  subject: string;
+}): Promise<boolean> => {
+  if (!env.BREVO_API_KEY || !env.PORTFOLIO_ADMIN_EMAIL) return false;
+  const first = visitor.name.split(/\s+/)[0] || 'there';
+  const about = visitor.subject ? ` about “${visitor.subject}”` : '';
+  try {
+    await sendViaBrevo(
+      {
+        replyTo: env.PORTFOLIO_ADMIN_EMAIL,
+        subject: 'Thanks for reaching out — Aditya Agarwal',
+        text:
+          `Hi ${first},\n\nThanks for your message${about}. I've received it and usually reply within 24 hours.\n\n` +
+          `If it's urgent, just reply to this email.\n\nBest,\nAditya Agarwal\nhttps://adityaagarwalportfolio.vercel.app`,
+        html:
+          `<p>Hi ${esc(first)},</p><p>Thanks for your message${esc(about)}. I've received it and usually reply within 24 hours.</p>` +
+          `<p>If it's urgent, just reply to this email.</p>` +
+          `<p>Best,<br/>Aditya Agarwal<br/><a href="https://adityaagarwalportfolio.vercel.app">adityaagarwalportfolio.vercel.app</a></p>`,
+      },
+      visitor.email,
+      'Aditya Agarwal',
+    );
+    return true;
+  } catch (err) {
+    logger.error({ err: (err as Error).message }, 'Portfolio contact auto-reply via Brevo failed');
+    return false;
+  }
 };

@@ -12,7 +12,8 @@
     "lint:fix": "eslint \"src/**/*.ts\" \"scripts/**/*.ts\" --fix",
     "format": "prettier --write \"src/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\"",
-    "generate:module": "tsx scripts/generate-module.ts"
+    "generate:module": "tsx scripts/generate-module.ts",
+    "test": "vitest run"
   },
   "keywords": [
     "backend",
@@ -49,12 +50,15 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@types/supertest": "^6.0.3",
     "@typescript-eslint/eslint-plugin": "^8.19.1",
     "@typescript-eslint/parser": "^8.19.1",
     "eslint": "^9.18.0",
     "eslint-config-prettier": "^10.0.1",
     "pino-pretty": "^13.0.0",
     "prettier": "^3.4.2",
-    "tsx": "^4.19.2"
+    "supertest": "^7.3.2",
+    "tsx": "^4.19.2",
+    "vitest": "^2.1.9"
   }
 }
