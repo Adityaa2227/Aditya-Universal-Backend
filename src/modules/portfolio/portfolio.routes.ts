@@ -21,7 +21,7 @@ import {
   testimonialUpdateSchema,
 } from './portfolio.validation';
 import { BlogController, postDraftSchema, postInputSchema } from './portfolio.blog';
-import { coverInputSchema, generateCover } from './portfolio.images';
+import { sharePost, shareProject } from './portfolio.share';
 import {
   passwordChangeSchema,
   SettingsController,
@@ -141,6 +141,10 @@ router.post('/testimonials/:id/ai-polish', requireAdmin, aiLimiter, byId, C.poli
 // Live sitemap for the portfolio site
 router.get('/sitemap.xml', C.sitemap);
 
+// Link previews for social apps (Vercel routes only preview bots here)
+router.get('/share/projects/:slug', wrap(shareProject));
+router.get('/share/blog/:slug', wrap(sharePost));
+
 // Contact
 router.post('/contact', formLimiter, validateRequest({ body: contactSchema }), C.submitContact);
 router.get('/contact', requireAdmin, C.listMessages);
@@ -180,13 +184,6 @@ router.post(
   aiLimiter,
   validateRequest({ body: postDraftSchema }),
   wrap(BlogController.aiDraft),
-);
-router.post(
-  '/posts/ai-cover',
-  requireAdmin,
-  aiLimiter,
-  validateRequest({ body: coverInputSchema }),
-  wrap(generateCover),
 );
 router.get('/posts/:slug', wrap(BlogController.get));
 router.post(
