@@ -30,10 +30,14 @@ export const testimonialUpdateSchema = z
   .object({
     isApproved: z.boolean().optional(),
     isFeatured: z.boolean().optional(),
+    message: z.string().trim().min(1, 'The review can’t be empty').optional(),
   })
-  .refine((v) => v.isApproved !== undefined || v.isFeatured !== undefined, {
-    message: 'Send isApproved or isFeatured',
-  });
+  .refine(
+    (v) => v.isApproved !== undefined || v.isFeatured !== undefined || v.message !== undefined,
+    {
+      message: 'Send isApproved, isFeatured or message',
+    },
+  );
 
 export const reorderSchema = z.object({
   items: z
@@ -47,9 +51,16 @@ export const idParamSchema = z.object({
 });
 
 export const projectDraftSchema = z.object({
-  notes: z.string().trim().min(20, 'Write a few sentences about the project first').max(15000, 'Notes are too long (max 15,000 characters)'),
+  notes: z
+    .string()
+    .trim()
+    .min(20, 'Write a few sentences about the project first')
+    .max(15000, 'Notes are too long (max 15,000 characters)'),
 });
 
 export const deleteManySchema = z.object({
-  ids: z.array(z.string().regex(/^[a-f\d]{24}$/i, 'Invalid id')).min(1, 'Select at least one message').max(500),
+  ids: z
+    .array(z.string().regex(/^[a-f\d]{24}$/i, 'Invalid id'))
+    .min(1, 'Select at least one message')
+    .max(500),
 });

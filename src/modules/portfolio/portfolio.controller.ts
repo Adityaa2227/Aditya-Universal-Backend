@@ -12,8 +12,8 @@ import { AppError } from '../../core/errors/AppError';
 import { getModels, IProject, passwordMatches, toSlug } from './portfolio.models';
 import { signAdminToken } from './portfolio.auth';
 import { uploadToImageKit } from './portfolio.storage';
-import { sendContactNotification } from './portfolio.mailer';
-import { draftProjectFromNotes } from './portfolio.ai';
+import { sendContactNotification, sendReviewNotification } from './portfolio.mailer';
+import { draftProjectFromNotes, draftReply, polishReview } from './portfolio.ai';
 
 type Handler = (req: Request, res: Response) => Promise<unknown>;
 
@@ -311,6 +311,8 @@ export class PortfolioController {
       isApproved: false,
       isFeatured: false,
     });
+    // Tell the owner a review is waiting (doesn't block or fail the visitor's request).
+    void sendReviewNotification({ name, role, message, rating });
     sendCreated(res, null, 'Review received. It will appear once approved.');
   });
 
@@ -322,8 +324,13 @@ export class PortfolioController {
 
   /** PUT /testimonials/:id (admin) - { isApproved?, isFeatured? } */
   static updateTestimonial = handle(async (req, res) => {
-    const { isApproved, isFeatured } = req.body as { isApproved?: boolean; isFeatured?: boolean };
-    const update: Record<string, boolean> = {};
+    const { isApproved, isFeatured, message } = req.body as {
+      isApproved?: boolean;
+      isFeatured?: boolean;
+      message?: string;
+    };
+    const update: Record<string, boolean | string> = {};
+    if (message !== undefined) update.message = message;
     if (isApproved !== undefined) update.isApproved = isApproved;
     if (isFeatured !== undefined) update.isFeatured = isFeatured;
     const review = await getModels()
@@ -408,5 +415,20 @@ export class PortfolioController {
       '',
     ].join('\n');
     res.set('Cache-Control', 'public, max-age=3600').type('application/xml').send(xml);
+  });
+
+  /** POST /contact/:id/ai-reply (admin) - drafts an email reply; nothing is sent */
+  static draftMessageReply = handle(async (req, res) => {
+    const msg = await getModels().ContactMessage.findById(req.params.id).lean();
+    if (!msg) throw AppError.notFound('Message not found');
+    const draft = await draftReply({ name: msg.name, subject: msg.subject, message: msg.message });
+    sendSuccess(res, draft, 'Reply drafted');
+  });
+
+  /** POST /testimonials/:id/ai-polish (admin) - suggests a proofread version; nothing is saved */
+  static polishTestimonial = handle(async (req, res) => {
+    const review = await getModels().Testimonial.findById(req.params.id).lean();
+    if (!review) throw AppError.notFound('Review not found');
+    sendSuccess(res, { message: await polishReview(review.message) }, 'Suggestion ready');
   });
 }

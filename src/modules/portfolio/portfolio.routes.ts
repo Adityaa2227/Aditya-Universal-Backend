@@ -68,7 +68,12 @@ router.get('/auth/me', requireAdmin, C.me);
 // Projects (static paths before "/:id")
 router.get('/projects', C.listProjects);
 router.get('/projects/admin', requireAdmin, C.listAllProjects);
-router.put('/projects/reorder', requireAdmin, validateRequest({ body: reorderSchema }), C.reorderProjects);
+router.put(
+  '/projects/reorder',
+  requireAdmin,
+  validateRequest({ body: reorderSchema }),
+  C.reorderProjects,
+);
 // AI drafting: 20 drafts per 10 minutes, admin only
 const aiLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
@@ -77,7 +82,13 @@ const aiLimiter = rateLimit({
   legacyHeaders: false,
   handler: tooMany('Too many AI drafts in a short time. Try again in a few minutes.'),
 });
-router.post('/projects/ai-draft', requireAdmin, aiLimiter, validateRequest({ body: projectDraftSchema }), C.draftProject);
+router.post(
+  '/projects/ai-draft',
+  requireAdmin,
+  aiLimiter,
+  validateRequest({ body: projectDraftSchema }),
+  C.draftProject,
+);
 router.get('/projects/:idOrSlug', C.getProject);
 router.post('/projects', requireAdmin, singleFile(imageUpload, 'image'), C.createProject);
 router.put('/projects/:id', requireAdmin, byId, singleFile(imageUpload, 'image'), C.updateProject);
@@ -91,10 +102,22 @@ router.put('/resume/:id/active', requireAdmin, byId, C.activateResume);
 
 // Reviews
 router.get('/testimonials', C.listApprovedTestimonials);
-router.post('/testimonials', formLimiter, validateRequest({ body: testimonialSchema }), C.submitTestimonial);
+router.post(
+  '/testimonials',
+  formLimiter,
+  validateRequest({ body: testimonialSchema }),
+  C.submitTestimonial,
+);
 router.get('/testimonials/admin', requireAdmin, C.listAllTestimonials);
-router.put('/testimonials/:id', requireAdmin, byId, validateRequest({ body: testimonialUpdateSchema }), C.updateTestimonial);
+router.put(
+  '/testimonials/:id',
+  requireAdmin,
+  byId,
+  validateRequest({ body: testimonialUpdateSchema }),
+  C.updateTestimonial,
+);
 router.delete('/testimonials/:id', requireAdmin, byId, C.deleteTestimonial);
+router.post('/testimonials/:id/ai-polish', requireAdmin, aiLimiter, byId, C.polishTestimonial);
 
 // Live sitemap for the portfolio site
 router.get('/sitemap.xml', C.sitemap);
@@ -102,6 +125,12 @@ router.get('/sitemap.xml', C.sitemap);
 // Contact
 router.post('/contact', formLimiter, validateRequest({ body: contactSchema }), C.submitContact);
 router.get('/contact', requireAdmin, C.listMessages);
-router.delete('/contact', requireAdmin, validateRequest({ body: deleteManySchema }), C.deleteMessages);
+router.delete(
+  '/contact',
+  requireAdmin,
+  validateRequest({ body: deleteManySchema }),
+  C.deleteMessages,
+);
+router.post('/contact/:id/ai-reply', requireAdmin, aiLimiter, byId, C.draftMessageReply);
 
 export const portfolioRoutes = router;

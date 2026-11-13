@@ -17,7 +17,11 @@ export const signAdminToken = (id: string): string =>
   jwt.sign({ id }, env.PORTFOLIO_JWT_SECRET as string, { expiresIn: '30d' });
 
 /** Requires "Authorization: Bearer <token>". The admin is stored on res.locals.admin. */
-export const requireAdmin = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const requireAdmin = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
   try {
     const header = req.headers.authorization;
     if (!header?.startsWith('Bearer ')) {

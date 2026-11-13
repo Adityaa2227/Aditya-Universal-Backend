@@ -33,7 +33,12 @@ Rules:
   "youtubeVideoUrl": ""
 }`;
 
-const str = (max: number) => z.coerce.string().trim().transform((v) => v.slice(0, max)).catch('');
+const str = (max: number) =>
+  z.coerce
+    .string()
+    .trim()
+    .transform((v) => v.slice(0, max))
+    .catch('');
 const list = (maxItems: number) =>
   z
     .array(z.coerce.string().trim())
@@ -70,7 +75,9 @@ const extractJson = (text: string): unknown => {
   return JSON.parse(text.slice(start, end + 1));
 };
 
-export const draftProjectFromNotes = async (notes: string): Promise<{ draft: ProjectDraft; provider: string; model: string }> => {
+export const draftProjectFromNotes = async (
+  notes: string,
+): Promise<{ draft: ProjectDraft; provider: string; model: string }> => {
   const result = await executeFormFillerFallbackText({
     systemPrompt: SYSTEM_PROMPT,
     userPrompt: `Raw notes:\n"""\n${notes}\n"""`,
@@ -82,12 +89,83 @@ export const draftProjectFromNotes = async (notes: string): Promise<{ draft: Pro
   try {
     parsed = extractJson(result.text);
   } catch {
-    throw new AppError('The AI reply couldn’t be read. Try again, or add a bit more detail to your notes.', 502, 'INTERNAL_SERVER_ERROR');
+    throw new AppError(
+      'The AI reply couldn’t be read. Try again, or add a bit more detail to your notes.',
+      502,
+      'INTERNAL_SERVER_ERROR',
+    );
   }
 
   const draft = draftSchema.parse(parsed);
   if (!draft.title && !draft.description) {
-    throw new AppError('The AI couldn’t make a draft from these notes. Add a bit more detail and try again.', 422, 'BAD_REQUEST');
+    throw new AppError(
+      'The AI couldn’t make a draft from these notes. Add a bit more detail and try again.',
+      422,
+      'BAD_REQUEST',
+    );
   }
   return { draft, provider: result.provider, model: result.model };
+};
+
+// ----------------------------------------------------------------------------
+// Reply drafts for contact messages
+// ----------------------------------------------------------------------------
+
+const REPLY_PROMPT = `You draft email replies for Aditya Agarwal, a software engineer (backend, full-stack, GenAI; ex-SWE intern at PayPal; B.Tech CSE at BIT Mesra), answering messages sent through his portfolio's contact form.
+
+Rules:
+- Warm, professional and brief (60-150 words). Plain text, no markdown.
+- Answer what they asked. Never invent commitments, dates, prices, availability or facts about Aditya beyond the profile above; where a decision is needed, propose a call or ask a clarifying question.
+- If the message is spam, abusive or empty, return a short polite acknowledgement.
+- Sign off as "Aditya".
+- Reply with ONE JSON object and nothing else: {"subject": "Re: ...", "body": "..."}`;
+
+const replySchema = z.object({ subject: str(200), body: str(5000) });
+
+export const draftReply = async (msg: {
+  name: string;
+  subject: string;
+  message: string;
+}): Promise<{ subject: string; body: string }> => {
+  const result = await executeFormFillerFallbackText({
+    systemPrompt: REPLY_PROMPT,
+    userPrompt: `From: ${msg.name}\n${msg.subject ? `Subject: ${msg.subject}\n` : ''}Message:\n"""\n${msg.message.slice(0, 8000)}\n"""`,
+    temperature: 0.5,
+    maxTokens: 700,
+  });
+  let parsed: z.infer<typeof replySchema>;
+  try {
+    parsed = replySchema.parse(extractJson(result.text));
+  } catch {
+    throw new AppError('The AI reply couldn’t be read. Try again.', 502, 'INTERNAL_SERVER_ERROR');
+  }
+  if (!parsed.body)
+    throw new AppError('The AI returned an empty reply. Try again.', 502, 'INTERNAL_SERVER_ERROR');
+  const fallback = `Re: ${msg.subject || 'your message'}`;
+  const subject = !parsed.subject || /\(none\)/i.test(parsed.subject) ? fallback : parsed.subject;
+  return { subject, body: parsed.body };
+};
+
+// ----------------------------------------------------------------------------
+// Light polish for review text (typos and grammar only)
+// ----------------------------------------------------------------------------
+
+const POLISH_PROMPT = `You lightly proofread a testimonial that someone wrote about Aditya Agarwal for his portfolio.
+Fix spelling, grammar, punctuation and capitalisation only. Keep the writer's words, meaning, tone and length. Do not add praise, facts or sentences, and do not remove any. If it is already fine, return it unchanged.
+Reply with ONE JSON object and nothing else: {"message": "..."}`;
+
+export const polishReview = async (message: string): Promise<string> => {
+  const result = await executeFormFillerFallbackText({
+    systemPrompt: POLISH_PROMPT,
+    userPrompt: `"""\n${message.slice(0, 6000)}\n"""`,
+    temperature: 0.1,
+    maxTokens: 1200,
+  });
+  let polished = '';
+  try {
+    polished = z.object({ message: str(6000) }).parse(extractJson(result.text)).message;
+  } catch {
+    throw new AppError('The AI reply couldn’t be read. Try again.', 502, 'INTERNAL_SERVER_ERROR');
+  }
+  return polished || message;
 };

@@ -50,6 +50,9 @@ const envSchema = z.object({
     .transform((val) => (val ? parseInt(val, 10) : undefined)),
   SMTP_USER: z.string().optional(),
   SMTP_PASS: z.string().optional(),
+  // Brevo transactional email API (preferred over SMTP when set)
+  BREVO_API_KEY: z.string().optional(),
+  BREVO_SENDER_EMAIL: z.string().optional(), // must be a verified sender in Brevo; defaults to PORTFOLIO_ADMIN_EMAIL
 });
 
 const parseEnv = () => {
