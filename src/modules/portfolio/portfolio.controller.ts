@@ -48,7 +48,11 @@ const URL_FIELDS = new Set(['githubLink', 'liveLink', 'youtubeVideoUrl', 'projec
 
 const toList = (value: unknown, separator: RegExp): string[] | undefined => {
   if (Array.isArray(value)) return value.map((v) => String(v).trim()).filter(Boolean);
-  if (typeof value === 'string') return value.split(separator).map((v) => v.trim()).filter(Boolean);
+  if (typeof value === 'string')
+    return value
+      .split(separator)
+      .map((v) => v.trim())
+      .filter(Boolean);
   return undefined;
 };
 
@@ -83,14 +87,16 @@ const parseProjectInput = (body: Record<string, unknown>): Partial<IProject> => 
   const isPublished = toBool(body.isPublished);
   if (isPublished !== undefined) out.isPublished = isPublished;
 
-  if (body.order !== undefined && Number.isFinite(Number(body.order))) out.order = Number(body.order);
+  if (body.order !== undefined && Number.isFinite(Number(body.order)))
+    out.order = Number(body.order);
 
   return out as Partial<IProject>;
 };
 
 const assertSlugFree = async (slug: string | undefined, exceptId?: string): Promise<void> => {
   if (!slug) return;
-  const clash = await getModels().Project.findOne({ slug, ...(exceptId ? { _id: { $ne: exceptId } } : {}) })
+  const clash = await getModels()
+    .Project.findOne({ slug, ...(exceptId ? { _id: { $ne: exceptId } } : {}) })
     .select('_id')
     .lean();
   if (clash) throw AppError.conflict(`Another project already uses the URL "/projects/${slug}".`);
@@ -108,7 +114,15 @@ export class PortfolioController {
     if (!admin || !(await passwordMatches(admin, password))) {
       throw AppError.unauthorized('Wrong username or password.');
     }
-    sendSuccess(res, { _id: String(admin._id), username: admin.username, token: signAdminToken(String(admin._id)) }, 'Logged in');
+    sendSuccess(
+      res,
+      {
+        _id: String(admin._id),
+        username: admin.username,
+        token: signAdminToken(String(admin._id)),
+      },
+      'Logged in',
+    );
   });
 
   /** GET /auth/me (admin) */
@@ -122,7 +136,10 @@ export class PortfolioController {
 
   /** GET /projects - published projects in display order */
   static listProjects = handle(async (_req, res) => {
-    const projects = await getModels().Project.find({ isPublished: true }).sort({ order: 1, createdAt: -1 }).lean();
+    const projects = await getModels()
+      .Project.find({ isPublished: true })
+      .sort({ order: 1, createdAt: -1 })
+      .lean();
     sendSuccess(res, projects);
   });
 
@@ -142,7 +159,10 @@ export class PortfolioController {
       : await Project.findOne({ slug, isPublished: true }).lean();
     if (!project) {
       // Older records have no stored slug: match the slug the site derives from the title.
-      const candidates = await Project.find({ isPublished: true, $or: [{ slug: { $exists: false } }, { slug: null }, { slug: '' }] }).lean();
+      const candidates = await Project.find({
+        isPublished: true,
+        $or: [{ slug: { $exists: false } }, { slug: null }, { slug: '' }],
+      }).lean();
       project = candidates.find((p) => toSlug(p.title) === slug) ?? null;
     }
     if (!project) throw AppError.notFound('Project not found');
@@ -197,7 +217,9 @@ export class PortfolioController {
     const { items } = req.body as { items: { _id: string; order: number }[] };
     const valid = items.filter((item) => isValidObjectId(item._id));
     await getModels().Project.bulkWrite(
-      valid.map((item) => ({ updateOne: { filter: { _id: item._id }, update: { $set: { order: item.order } } } })),
+      valid.map((item) => ({
+        updateOne: { filter: { _id: item._id }, update: { $set: { order: item.order } } },
+      })),
     );
     sendSuccess(res, { updated: valid.length }, 'Projects reordered');
   });
@@ -216,7 +238,10 @@ export class PortfolioController {
   /** GET /resume - the active resume, or the PDF bundled with the site */
   static getActiveResume = handle(async (_req, res) => {
     const resume = await getModels().Resume.findOne({ isActive: true }).lean();
-    sendSuccess(res, resume ?? { fileName: 'Aditya_Agarwal_Resume.pdf', fileUrl: '/resume.pdf', isActive: true });
+    sendSuccess(
+      res,
+      resume ?? { fileName: 'Aditya_Agarwal_Resume.pdf', fileUrl: '/resume.pdf', isActive: true },
+    );
   });
 
   /** GET /resume/all (admin) - upload history */
@@ -231,7 +256,11 @@ export class PortfolioController {
     const fileUrl = await uploadToImageKit(req.file, '/portfolio/resume');
     const { Resume } = getModels();
     await Resume.updateMany({ isActive: true }, { $set: { isActive: false } });
-    const resume = await Resume.create({ fileUrl, fileName: req.file.originalname, isActive: true });
+    const resume = await Resume.create({
+      fileUrl,
+      fileName: req.file.originalname,
+      isActive: true,
+    });
     sendCreated(res, resume, 'Resume uploaded');
   });
 
@@ -274,7 +303,14 @@ export class PortfolioController {
       sendCreated(res, null, 'Review received');
       return;
     }
-    await getModels().Testimonial.create({ name, role, message, rating, isApproved: false, isFeatured: false });
+    await getModels().Testimonial.create({
+      name,
+      role,
+      message,
+      rating,
+      isApproved: false,
+      isFeatured: false,
+    });
     sendCreated(res, null, 'Review received. It will appear once approved.');
   });
 
@@ -290,7 +326,9 @@ export class PortfolioController {
     const update: Record<string, boolean> = {};
     if (isApproved !== undefined) update.isApproved = isApproved;
     if (isFeatured !== undefined) update.isFeatured = isFeatured;
-    const review = await getModels().Testimonial.findByIdAndUpdate(req.params.id, { $set: update }, { new: true }).lean();
+    const review = await getModels()
+      .Testimonial.findByIdAndUpdate(req.params.id, { $set: update }, { new: true })
+      .lean();
     if (!review) throw AppError.notFound('Review not found');
     sendSuccess(res, review, 'Review updated');
   });
@@ -308,7 +346,13 @@ export class PortfolioController {
 
   /** POST /contact - saves the message and emails it to the owner */
   static submitContact = handle(async (req, res) => {
-    const msg = req.body as { name: string; email: string; phone: string; subject: string; message: string };
+    const msg = req.body as {
+      name: string;
+      email: string;
+      phone: string;
+      subject: string;
+      message: string;
+    };
     const saved = await getModels().ContactMessage.create(msg);
     const emailed = await sendContactNotification(msg);
     sendCreated(res, { _id: String(saved._id), emailed }, 'Message sent');
@@ -325,5 +369,44 @@ export class PortfolioController {
     const { ids } = req.body as { ids: string[] };
     const result = await getModels().ContactMessage.deleteMany({ _id: { $in: ids } });
     sendSuccess(res, { deleted: result.deletedCount }, `Deleted ${result.deletedCount} message(s)`);
+  });
+
+  /** GET /sitemap.xml - live sitemap for the portfolio site (served at its /sitemap.xml via a Vercel rewrite) */
+  static sitemap = handle(async (_req, res) => {
+    const site = 'https://adityaagarwalportfolio.vercel.app';
+    const projects = await getModels()
+      .Project.find({ isPublished: true })
+      .select('slug title updatedAt')
+      .sort({ order: 1 })
+      .lean<{ slug?: string; title: string; updatedAt?: Date }[]>();
+    const day = (d?: Date) => (d ? new Date(d) : new Date()).toISOString().slice(0, 10);
+    const latest = projects.reduce<Date | undefined>(
+      (acc, p) => (p.updatedAt && (!acc || p.updatedAt > acc) ? p.updatedAt : acc),
+      undefined,
+    );
+    const urls = [
+      { loc: '/', lastmod: day(latest), priority: '1.0' },
+      { loc: '/projects', lastmod: day(latest), priority: '0.8' },
+      ...projects
+        .map((p) => ({ slug: p.slug || toSlug(p.title), updatedAt: p.updatedAt }))
+        .filter((p) => p.slug)
+        .map((p) => ({
+          loc: `/projects/${encodeURIComponent(p.slug)}`,
+          lastmod: day(p.updatedAt),
+          priority: '0.6',
+        })),
+    ];
+    const entries = urls.map(
+      (u) =>
+        `  <url><loc>${site}${u.loc}</loc><lastmod>${u.lastmod}</lastmod><priority>${u.priority}</priority></url>`,
+    );
+    const xml = [
+      '<?xml version="1.0" encoding="UTF-8"?>',
+      '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+      ...entries,
+      '</urlset>',
+      '',
+    ].join('\n');
+    res.set('Cache-Control', 'public, max-age=3600').type('application/xml').send(xml);
   });
 }

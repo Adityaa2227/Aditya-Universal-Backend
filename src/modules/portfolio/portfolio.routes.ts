@@ -96,6 +96,9 @@ router.get('/testimonials/admin', requireAdmin, C.listAllTestimonials);
 router.put('/testimonials/:id', requireAdmin, byId, validateRequest({ body: testimonialUpdateSchema }), C.updateTestimonial);
 router.delete('/testimonials/:id', requireAdmin, byId, C.deleteTestimonial);
 
+// Live sitemap for the portfolio site
+router.get('/sitemap.xml', C.sitemap);
+
 // Contact
 router.post('/contact', formLimiter, validateRequest({ body: contactSchema }), C.submitContact);
 router.get('/contact', requireAdmin, C.listMessages);
